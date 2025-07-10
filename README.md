@@ -1,1 +1,1 @@
-# quantumlib
+# QuantumLib - Quantum Computing Playground
