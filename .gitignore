@@ -61,3 +61,6 @@ data/raw/*.txt
 
 # Cache
 .cache/
+
+# Experiment results
+.results/

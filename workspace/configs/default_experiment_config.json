@@ -1,0 +1,30 @@
+{
+    "experiment_settings": {
+        "default_shots": 1024,
+        "default_phase_points": 20,
+        "default_submit_interval": 1.0,
+        "default_wait_minutes": 30,
+        "default_devices": ["qulacs"]
+    },
+    "oqtopus_settings": {
+        "transpiler_options": {
+            "basis_gates": ["sx", "x", "rz", "cx"],
+            "optimization_level": 2,
+            "routing_method": "sabre"
+        },
+        "mitigation_options": {
+            "ro_error_mitigation": "pseudo_inverse"
+        }
+    },
+    "chsh_parameters": {
+        "standard_theta_a": 0,
+        "standard_theta_b": 0.7853981633974483,
+        "classical_bound": 2.0,
+        "theoretical_max": 2.8284271247461903
+    },
+    "workspace_info": {
+        "description": "Personal workspace for CHSH experiments",
+        "version": "1.0.0",
+        "library_version": "0.1.0"
+    }
+}
