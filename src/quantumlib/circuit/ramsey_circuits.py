@@ -11,6 +11,7 @@ import numpy as np
 try:
     from qiskit import ClassicalRegister, QuantumCircuit, QuantumRegister
     from qiskit_aer.noise import NoiseModel, thermal_relaxation_error
+
     QISKIT_AVAILABLE = True
 except ImportError:
     QISKIT_AVAILABLE = False
@@ -24,7 +25,9 @@ class RamseyCircuitFactory:
     """
 
     @staticmethod
-    def create_ramsey_circuit(delay_time: float, detuning: float = 0.0, t1: float = 500, t2: float = 500) -> Any:
+    def create_ramsey_circuit(
+        delay_time: float, detuning: float = 0.0, t1: float = 500, t2: float = 500
+    ) -> Any:
         """
         Ramsey振動測定回路を作成
 
@@ -41,12 +44,12 @@ class RamseyCircuitFactory:
             raise ImportError("Qiskit is required for circuit creation")
 
         # 1量子ビット + 1古典ビット
-        qubits = QuantumRegister(1, 'q')
-        bits = ClassicalRegister(1, 'c')
+        qubits = QuantumRegister(1, "q")
+        bits = ClassicalRegister(1, "c")
         qc = QuantumCircuit(qubits, bits)
 
         # First π/2 pulse
-        qc.ry(np.pi/2, 0)
+        qc.rx(np.pi / 2, 0)
 
         # 遅延時間の間待機（自由進化）
         qc.delay(int(delay_time), 0, unit="ns")
@@ -58,7 +61,7 @@ class RamseyCircuitFactory:
             qc.rz(phase, 0)
 
         # Second π/2 pulse (analysis pulse)
-        qc.ry(np.pi/2, 0)
+        qc.rx(np.pi / 2, 0)
 
         # Z基底測定
         qc.measure(0, 0)
@@ -66,8 +69,9 @@ class RamseyCircuitFactory:
         return qc
 
     @staticmethod
-    def create_ramsey_with_noise_model(delay_time: float, detuning: float = 0.0, 
-                                     t1: float = 500, t2: float = 500) -> tuple[Any, Any]:
+    def create_ramsey_with_noise_model(
+        delay_time: float, detuning: float = 0.0, t1: float = 500, t2: float = 500
+    ) -> tuple[Any, Any]:
         """
         ノイズモデル付きRamsey振動測定回路を作成
 
@@ -89,12 +93,12 @@ class RamseyCircuitFactory:
         noise_model.add_quantum_error(error, "delay", [0])
 
         # 回路定義
-        qubits = QuantumRegister(1, 'q')
-        bits = ClassicalRegister(1, 'c')
+        qubits = QuantumRegister(1, "q")
+        bits = ClassicalRegister(1, "c")
         qc = QuantumCircuit(qubits, bits)
 
         # First π/2 pulse
-        qc.ry(np.pi/2, 0)
+        qc.ry(np.pi / 2, 0)
 
         # 遅延時間の間待機
         qc.delay(int(delay_time), 0, unit="ns")
@@ -105,7 +109,7 @@ class RamseyCircuitFactory:
             qc.rz(phase, 0)
 
         # Second π/2 pulse
-        qc.ry(np.pi/2, 0)
+        qc.ry(np.pi / 2, 0)
 
         # Z基底測定
         qc.measure(0, 0)
@@ -113,8 +117,12 @@ class RamseyCircuitFactory:
         return qc, noise_model
 
     @staticmethod
-    def create_multiple_ramsey_circuits(delay_times: list[float], detuning: float = 0.0,
-                                      t1: float = 500, t2: float = 500) -> list[Any]:
+    def create_multiple_ramsey_circuits(
+        delay_times: list[float],
+        detuning: float = 0.0,
+        t1: float = 500,
+        t2: float = 500,
+    ) -> list[Any]:
         """
         複数の遅延時間に対するRamsey回路を作成
 
@@ -129,31 +137,40 @@ class RamseyCircuitFactory:
         """
         circuits = []
         for delay_time in delay_times:
-            circuit = RamseyCircuitFactory.create_ramsey_circuit(delay_time, detuning, t1, t2)
+            circuit = RamseyCircuitFactory.create_ramsey_circuit(
+                delay_time, detuning, t1, t2
+            )
             circuits.append(circuit)
         return circuits
 
 
 # 便利関数
-def create_ramsey_circuit(delay_time: float, detuning: float = 0.0, 
-                         t1: float = 500, t2: float = 500) -> Any:
+def create_ramsey_circuit(
+    delay_time: float, detuning: float = 0.0, t1: float = 500, t2: float = 500
+) -> Any:
     """
     Ramsey振動測定回路作成の便利関数
     """
     return RamseyCircuitFactory.create_ramsey_circuit(delay_time, detuning, t1, t2)
 
 
-def create_ramsey_with_noise_model(delay_time: float, detuning: float = 0.0,
-                                  t1: float = 500, t2: float = 500) -> tuple[Any, Any]:
+def create_ramsey_with_noise_model(
+    delay_time: float, detuning: float = 0.0, t1: float = 500, t2: float = 500
+) -> tuple[Any, Any]:
     """
     ノイズモデル付きRamsey振動測定回路作成の便利関数
     """
-    return RamseyCircuitFactory.create_ramsey_with_noise_model(delay_time, detuning, t1, t2)
+    return RamseyCircuitFactory.create_ramsey_with_noise_model(
+        delay_time, detuning, t1, t2
+    )
 
 
-def create_multiple_ramsey_circuits(delay_times: list[float], detuning: float = 0.0,
-                                   t1: float = 500, t2: float = 500) -> list[Any]:
+def create_multiple_ramsey_circuits(
+    delay_times: list[float], detuning: float = 0.0, t1: float = 500, t2: float = 500
+) -> list[Any]:
     """
     複数Ramsey回路作成の便利関数
     """
-    return RamseyCircuitFactory.create_multiple_ramsey_circuits(delay_times, detuning, t1, t2)
+    return RamseyCircuitFactory.create_multiple_ramsey_circuits(
+        delay_times, detuning, t1, t2
+    )

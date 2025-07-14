@@ -484,37 +484,44 @@ class RamseyExperiment(BaseExperiment):
 
     def _create_single_ramsey_circuit(self, delay_time: float, detuning: float = 0.0):
         """
-        単一Ramsey回路作成
+        単一Ramsey回路作成（Qiskitスタイル）
+        
+        Args:
+            delay_time: 遅延時間 [ns]
+            detuning: 周波数デチューニング [MHz] (default: 0.0)
+            
+        Ramsey sequence: H - delay - Rz(φ) - H - measure
+        where φ = 2π × detuning [MHz] × delay_time [ns] × 1e-3
         """
         try:
-            from qiskit import ClassicalRegister, QuantumCircuit, QuantumRegister
+            from qiskit import QuantumCircuit
         except ImportError:
             raise ImportError("Qiskit is required for circuit creation")
 
-        # 1量子ビット + 1古典ビット
-        qubits = QuantumRegister(1, 'q')
-        bits = ClassicalRegister(1, 'c')
-        qc = QuantumCircuit(qubits, bits)
+        # 1量子ビット + 1測定ビット（Qiskitスタイル）
+        circuit = QuantumCircuit(1, 1)
 
-        # First π/2 pulse
-        qc.ry(np.pi/2, 0)
+        # First π/2 pulse (Hadamard gate - Qiskitスタイル)
+        circuit.h(0)
 
-        # 遅延時間の間待機（自由進化）
-        qc.delay(int(delay_time), 0, unit="ns")
+        # 遅延時間の間自由進化
+        if delay_time > 0:
+            circuit.delay(int(delay_time), 0, unit='ns')
 
-        # デチューニングがある場合は位相回転を追加
+        # デチューニング効果（z軸回転）
         if detuning != 0.0:
-            # 位相 = 2π × detuning [MHz] × delay_time [ns] × 1e-3
+            # φ = 2π × detuning [MHz] × delay_time [ns] × 1e-9 [s/ns] × 1e6 [Hz/MHz]
+            # φ = 2π × detuning × delay_time × 1e-3
             phase = 2 * np.pi * detuning * delay_time * 1e-3
-            qc.rz(phase, 0)
+            circuit.rz(phase, 0)
 
-        # Second π/2 pulse (analysis pulse)
-        qc.ry(np.pi/2, 0)
+        # Second π/2 pulse (analysis pulse - Hadamard)
+        circuit.h(0)
 
         # Z基底測定
-        qc.measure(0, 0)
+        circuit.measure(0, 0)
 
-        return qc
+        return circuit
 
     def analyze_results(self, results: Dict[str, List[Dict[str, Any]]], **kwargs) -> Dict[str, Any]:
         """
@@ -578,52 +585,42 @@ class RamseyExperiment(BaseExperiment):
         """
         単一デバイス結果解析
         """
+        p0_values = []
         p1_values = []
 
         for i, result in enumerate(device_results):
             if result and result.get("success", False):
                 counts = result.get("counts", {})
-                if counts:  # カウントデータが存在する場合のみ
-                    # P(1)確率計算（readout mitigationで補正済み）
-                    p1 = self._calculate_p1_probability(counts)
-                    p1_values.append(p1)
+                if counts:
+                    p0 = self._calculate_p0_probability(counts)
+                    p0_values.append(p0)
+                    p1_values.append(1.0 - p0)  # P(1) = 1 - P(0)
                 else:
+                    p0_values.append(np.nan)
                     p1_values.append(np.nan)
             else:
-                # 失敗したジョブや無効な結果はNaNとして記録
+                p0_values.append(np.nan)
                 p1_values.append(np.nan)
 
-        # 統計計算
+        valid_p0s = np.array([p for p in p0_values if not np.isnan(p)])
         valid_p1s = np.array([p for p in p1_values if not np.isnan(p)])
-
-        # 有効データでの統計計算
-        total_jobs = len(p1_values)
+        
+        total_jobs = len(p0_values)
         successful_jobs = len(valid_p1s)
         failed_jobs = total_jobs - successful_jobs
-        
+
         return {
+            "p0_values": p0_values,
             "p1_values": p1_values,
             "delay_times": delay_times.tolist(),
             "statistics": {
-                "initial_p1": (
-                    float(valid_p1s[0])
-                    if len(valid_p1s) > 0
-                    else 0.5
-                ),
-                "final_p1": (
-                    float(valid_p1s[-1])
-                    if len(valid_p1s) > 0
-                    else 0.5
-                ),
+                "initial_p1": float(valid_p1s[0]) if len(valid_p1s) > 0 else 0.5,
+                "final_p1": float(valid_p1s[-1]) if len(valid_p1s) > 0 else 0.5,
                 "success_rate": successful_jobs / total_jobs if total_jobs > 0 else 0,
                 "successful_jobs": successful_jobs,
                 "failed_jobs": failed_jobs,
                 "total_jobs": total_jobs,
-                "oscillation_amplitude": (
-                    float(max(valid_p1s) - min(valid_p1s))
-                    if len(valid_p1s) > 1
-                    else 0.0
-                ),
+                "oscillation_amplitude": float(max(valid_p1s) - min(valid_p1s)) if len(valid_p1s) > 1 else 0.0,
             },
         }
 
@@ -648,6 +645,24 @@ class RamseyExperiment(BaseExperiment):
         n_1 = binary_counts.get("1", 0)
         p1 = n_1 / total
         return p1
+
+    def _calculate_p0_probability(self, counts: Dict[str, int]) -> float:
+        """
+        P(0)確率計算（Ramsey実験用 - 物理的に正しい表現）
+        
+        Ramsey実験では基底状態|0⟩への確率的緩和を観測するため、
+        P(0) = (1 - cos(φ)) × exp(-t/T2*) / 2 が期待される。
+        """
+        # OQTOPUSの10進数countsを2進数形式に変換
+        binary_counts = self._convert_decimal_to_binary_counts(counts)
+        
+        total = sum(binary_counts.values())
+        if total == 0:
+            return 0.5  # デフォルト値（完全混合状態）
+            
+        n_0 = binary_counts.get("0", 0)
+        p0 = n_0 / total
+        return p0
         
     def _convert_decimal_to_binary_counts(self, decimal_counts: Dict[str, int]) -> Dict[str, int]:
         """
@@ -712,7 +727,7 @@ class RamseyExperiment(BaseExperiment):
             # detuning=0の場合：純粋なT2*減衰（振動なし）
             if abs(expected_detuning) < 0.001:  # detuning ≈ 0
                 def t2_star_decay(t, A, T2_star, offset):
-                    return A * np.exp(-t / T2_star) + offset
+                    return offset - A * np.exp(-t / T2_star)
                 
                 # 初期推定値
                 p0 = [0.5, self.expected_t2_star, 0.5]  # A, T2*, offset
@@ -749,7 +764,7 @@ class RamseyExperiment(BaseExperiment):
             
             else:  # detuning≠0の場合：振動する減衰
                 def ramsey_oscillation(t, A, T2_star, freq, phase, offset):
-                    return A * np.exp(-t / T2_star) * np.cos(2 * np.pi * freq * t * 1e-3 + phase) + offset
+                    return offset - A * np.exp(-t / T2_star) * np.cos(2 * np.pi * freq * t * 1e-3 + phase)
                 
                 # 初期推定値
                 p0 = [0.5, self.expected_t2_star, expected_detuning, 0.0, 0.5]  # A, T2*, freq, phase, offset
@@ -865,46 +880,42 @@ class RamseyExperiment(BaseExperiment):
         colors = ["blue", "red", "green", "orange", "purple"]
 
         for i, (device, device_data) in enumerate(device_results.items()):
-            if "p1_values" in device_data:
-                p1_values = device_data["p1_values"]
+            if "p0_values" in device_data:
+                p0_values = device_data["p0_values"]
                 t2_star_fitted = device_data.get("t2_star_fitted", 0.0)
                 detuning_fitted = device_data.get("detuning_fitted", 0.0)
                 fitting_quality = device_data.get("fitting_quality", {})
                 r_squared = fitting_quality.get("r_squared", 0.0)
                 color = colors[i % len(colors)]
                 
-                # 実測データプロット
                 ax.semilogx(
                     delay_times,
-                    p1_values,
+                    p0_values,
                     "o",
                     markersize=4,
-                    label=f"{device} data",
+                    label=f"{device} data (P0)",
                     alpha=0.8,
                     color=color,
                 )
                 
-                # フィッティングが有効な場合のみフィット曲線をプロット
                 if self.enable_fitting and t2_star_fitted > 0:
                     fit_delays = np.logspace(np.log10(min(delay_times)), np.log10(max(delay_times)), 200)
-                    A = 0.5  # 振幅の推定値
+                    A = 0.5
                     offset = 0.5
                     
-                    # フィッティングで使用されたモデルに応じて曲線を生成
                     fitting_method = fitting_quality.get('method', 'unknown')
                     
                     if fitting_method == 'exponential_decay_t2star' or abs(detuning_fitted) < 0.001:
-                        # T2*減衰のみ（振動なし）
-                        fit_curve = A * np.exp(-fit_delays / t2_star_fitted) + offset
-                        label_text = f"{device} fit (T2*={t2_star_fitted:.0f}ns, R²={r_squared:.3f}) [T2* decay]"
+                        p1_fit_curve = offset - A * np.exp(-fit_delays / t2_star_fitted)
+                        label_text = f"{device} fit (T2*={t2_star_fitted:.0f}ns, R²={r_squared:.3f})"
                     else:
-                        # Ramsey振動: P(t) = A * exp(-t/T2*) * cos(2π*f*t) + offset
-                        fit_curve = A * np.exp(-fit_delays / t2_star_fitted) * np.cos(2 * np.pi * detuning_fitted * fit_delays * 1e-3) + offset
+                        p1_fit_curve = offset - A * np.exp(-fit_delays / t2_star_fitted) * np.cos(2 * np.pi * detuning_fitted * fit_delays * 1e-3)
                         label_text = f"{device} fit (T2*={t2_star_fitted:.0f}ns, f={detuning_fitted:.3f}MHz, R²={r_squared:.3f})"
                         
+                    p0_fit_curve = 1.0 - p1_fit_curve
                     ax.semilogx(
                         fit_delays,
-                        fit_curve,
+                        p0_fit_curve,
                         "-",
                         linewidth=2,
                         color=color,
@@ -912,9 +923,8 @@ class RamseyExperiment(BaseExperiment):
                         label=label_text
                     )
 
-        # Formatting
         ax.set_xlabel("Delay time τ [ns] (log scale)", fontsize=14)
-        ax.set_ylabel("P(1)", fontsize=14)
+        ax.set_ylabel("P(0)", fontsize=14)
         title_suffix = " (with fitting)" if self.enable_fitting else " (raw data)"
         ax.set_title(f"QuantumLib Ramsey Oscillation Experiment{title_suffix}", fontsize=16, fontweight="bold")
         ax.grid(True, which="both", ls="--", linewidth=0.5)
@@ -1027,21 +1037,20 @@ class RamseyExperiment(BaseExperiment):
                 table.add_column("Device", style="cyan")
                 table.add_column("T2* Fitted [ns]", justify="right")
                 table.add_column("Detuning [MHz]", justify="right")
-                table.add_column("Oscillation", justify="right")
+                table.add_column("P(0) Oscillation", justify="right")
                 table.add_column("Success Rate", justify="right")
                 table.add_column("Clear Signal", justify="center")
 
                 for device, device_data in device_results.items():
-                    if 'p1_values' in device_data:
-                        p1_values = device_data['p1_values']
-                        valid_p1s = [p for p in p1_values if not np.isnan(p)]
+                    if "p0_values" in device_data:
+                        p0_values = device_data["p0_values"]
+                        valid_p0s = [p for p in p0_values if not np.isnan(p)]
 
-                        if valid_p1s and len(valid_p1s) >= 2:
-                            oscillation_amplitude = max(valid_p1s) - min(valid_p1s)
-                            t2_star_fitted = device_data.get('t2_star_fitted', 0.0)
-                            detuning_fitted = device_data.get('detuning_fitted', 0.0)
+                        if valid_p0s and len(valid_p0s) >= 2:
+                            oscillation_amplitude = max(valid_p0s) - min(valid_p0s)
+                            t2_star_fitted = device_data.get("t2_star_fitted", 0.0)
+                            detuning_fitted = device_data.get("detuning_fitted", 0.0)
                             
-                            # 成功率の取得
                             stats = device_data.get('statistics', {})
                             success_rate = stats.get('success_rate', 0.0)
                             successful_jobs = stats.get('successful_jobs', 0)
@@ -1081,16 +1090,15 @@ class RamseyExperiment(BaseExperiment):
             print("="*60)
 
             for device, device_data in device_results.items():
-                if 'p1_values' in device_data:
-                    p1_values = device_data['p1_values']
-                    valid_p1s = [p for p in p1_values if not np.isnan(p)]
+                if 'p0_values' in device_data:
+                    p0_values = device_data['p0_values']
+                    valid_p0s = [p for p in p0_values if not np.isnan(p)]
 
-                    if valid_p1s and len(valid_p1s) >= 2:
-                        oscillation_amplitude = max(valid_p1s) - min(valid_p1s)
+                    if valid_p0s and len(valid_p0s) >= 2:
+                        oscillation_amplitude = max(valid_p0s) - min(valid_p0s)
                         t2_star_fitted = device_data.get('t2_star_fitted', 0.0)
                         detuning_fitted = device_data.get('detuning_fitted', 0.0)
                         
-                        # 成功率の取得
                         stats = device_data.get('statistics', {})
                         success_rate = stats.get('success_rate', 0.0)
                         successful_jobs = stats.get('successful_jobs', 0)
@@ -1101,7 +1109,7 @@ class RamseyExperiment(BaseExperiment):
                         print(f"Device: {device.upper()}")
                         print(f"  T2* Fitted: {t2_star_fitted:.1f} ns")
                         print(f"  Detuning: {detuning_fitted:.3f} MHz")
-                        print(f"  Oscillation: {oscillation_amplitude:.3f}")
+                        print(f"  P(0) Oscillation: {oscillation_amplitude:.3f}")
                         print(f"  Success Rate: {success_rate*100:.1f}% ({successful_jobs}/{total_jobs})")
                         print(f"  Clear Signal: {clear_signal}")
                         print()
