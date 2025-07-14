@@ -175,13 +175,14 @@ class QuantumExperimentSimple:
 
         return all_job_ids
 
-    def get_oqtopus_result(self, job_id: str, timeout_minutes: int = 30) -> Optional[Dict[str, Any]]:
+    def get_oqtopus_result(self, job_id: str, timeout_minutes: int = 30, verbose_log: bool = False) -> Optional[Dict[str, Any]]:
         """
         OQTOPUS結果取得（ユーザーに見える実装）
 
         Args:
             job_id: ジョブID
             timeout_minutes: タイムアウト（分）
+            verbose_log: 詳細ログ出力の有効/無効
 
         Returns:
             測定結果
@@ -190,7 +191,9 @@ class QuantumExperimentSimple:
             return None
 
         try:
-            print(f"⏳ Waiting for result: {job_id[:8]}...")
+            # 詳細ログは有効時のみ出力
+            if verbose_log:
+                print(f"⏳ Waiting for result: {job_id[:8]}...")
 
             # OQTOPUS結果取得
             job = self.oqtopus_backend.retrieve_job(job_id)

@@ -128,6 +128,76 @@ class BaseExperimentCLI(ABC):
                               devices: List[str], shots: int, parallel_workers: int) -> dict:
         """OQTOPUS backend での並列実行"""
 
+        # T1実験の場合は専用の並列化実装を使用（プログレスバーなし）
+        if hasattr(experiment_instance, '_submit_t1_circuits_parallel_with_order'):
+            self.console.print("   → Using T1-specific parallel execution")
+            
+            # プログレスバーなしの簡単なアプローチでスタック問題を回避
+            self.console.print("   📊 Submitting T1 circuits...")
+            job_data = experiment_instance._submit_t1_circuits_parallel_with_order(
+                circuits, devices, shots, parallel_workers
+            )
+            self.console.print("   ✅ T1 circuits submitted")
+            
+            self.console.print("   📊 Collecting T1 results...")
+            try:
+                raw_results = experiment_instance._collect_t1_results_parallel_with_order(
+                    job_data, parallel_workers
+                )
+                self.console.print("   ✅ T1 results collected")
+            except Exception as e:
+                self.console.print(f"   ❌ T1 collection failed: {e}")
+                raise
+
+            return raw_results
+        
+        # Ramsey実験の場合は専用の並列化実装を使用（プログレスバーなし）
+        if hasattr(experiment_instance, '_submit_ramsey_circuits_parallel_with_order'):
+            self.console.print("   → Using Ramsey-specific parallel execution")
+            
+            # プログレスバーなしの簡単なアプローチでスタック問題を回避
+            self.console.print("   📊 Submitting Ramsey circuits...")
+            job_data = experiment_instance._submit_ramsey_circuits_parallel_with_order(
+                circuits, devices, shots, parallel_workers
+            )
+            self.console.print("   ✅ Ramsey circuits submitted")
+            
+            self.console.print("   📊 Collecting Ramsey results...")
+            try:
+                raw_results = experiment_instance._collect_ramsey_results_parallel_with_order(
+                    job_data, parallel_workers
+                )
+                self.console.print("   ✅ Ramsey results collected")
+            except Exception as e:
+                self.console.print(f"   ❌ Ramsey collection failed: {e}")
+                raise
+
+            return raw_results
+        
+        # T2 Echo実験の場合は専用の並列化実装を使用（プログレスバーなし）
+        if hasattr(experiment_instance, '_submit_t2_echo_circuits_parallel_with_order'):
+            self.console.print("   → Using T2 Echo-specific parallel execution")
+            
+            # プログレスバーなしの簡単なアプローチでスタック問題を回避
+            self.console.print("   📊 Submitting T2 Echo circuits...")
+            job_data = experiment_instance._submit_t2_echo_circuits_parallel_with_order(
+                circuits, devices, shots, parallel_workers
+            )
+            self.console.print("   ✅ T2 Echo circuits submitted")
+            
+            self.console.print("   📊 Collecting T2 Echo results...")
+            try:
+                raw_results = experiment_instance._collect_t2_echo_results_parallel_with_order(
+                    job_data, parallel_workers
+                )
+                self.console.print("   ✅ T2 Echo results collected")
+            except Exception as e:
+                self.console.print(f"   ❌ T2 Echo collection failed: {e}")
+                raise
+
+            return raw_results
+        
+        # 通常の並列実行（従来通り）
         with Progress(
             SpinnerColumn(),
             TextColumn("[progress.description]{task.description}"),
@@ -208,7 +278,8 @@ class BaseExperimentCLI(ABC):
 
             experiment_class = self.get_experiment_class()
             experiment_instance = experiment_class(
-                experiment_name=experiment_name or f"{self.experiment_name.lower()}_{int(time.time())}"
+                experiment_name=experiment_name or f"{self.experiment_name.lower()}_{int(time.time())}",
+                **kwargs  # 実験固有の初期化パラメータを渡す
             )
 
             # 実験固有の回路生成

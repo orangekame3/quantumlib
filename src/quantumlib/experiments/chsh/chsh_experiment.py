@@ -25,6 +25,8 @@ class CHSHExperiment(BaseExperiment):
     """
 
     def __init__(self, experiment_name: str = None, **kwargs):
+        # CHSH固有のpointsをkwargsから取り除く
+        kwargs.pop('points', None)
         super().__init__(experiment_name, **kwargs)
 
         # CHSH実験固有の設定

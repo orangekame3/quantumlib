@@ -151,50 +151,48 @@ class BaseExperiment(ABC):
     def submit_circuits_parallel(self, circuits: List[Any],
                                devices: List[str] = ['qulacs'],
                                shots: int = 1024,
-                               submit_interval: float = 1.0) -> Dict[str, List[str]]:
+                               parallel_workers: int = 4) -> Dict[str, List[str]]:
         """
-        複数回路を並列投入
+        複数回路を並列投入（改善版）
         """
-        print(f"Submitting {len(circuits)} circuits to {len(devices)} devices")
+        print(f"Submitting {len(circuits)} circuits to {len(devices)} devices using {parallel_workers} workers")
 
-        # OQTOPUSが利用できない場合、ローカルシミュレーションにフォールバック
         if not self.oqtopus_available:
-            print("OQTOPUS not available, trying local simulation...")
+            print("OQTOPUS not available, falling back to local simulation...")
             if self.local_simulator_available:
                 return self.submit_circuits_locally(circuits, devices, shots)
             else:
                 print("Local simulator also not available")
                 return {device: [] for device in devices}
 
-        all_job_ids = {}
+        all_job_ids = {device: [] for device in devices}
+        submission_tasks = []
 
-        def submit_to_device(device):
-            device_jobs = []
-            for i, circuit in enumerate(circuits):
-                try:
-                    job_id = self.submit_circuit_to_oqtopus(circuit, shots, device)
-                    if job_id:
-                        device_jobs.append(job_id)
-                        print(f"Circuit {i+1}/{len(circuits)} → {device}: {job_id[:8]}...")
-                    else:
-                        print(f"Circuit {i+1}/{len(circuits)} → {device}: failed")
+        def submit_single_circuit(circuit, device, index):
+            try:
+                job_id = self.submit_circuit_to_oqtopus(circuit, shots, device)
+                if job_id:
+                    print(f"Circuit {index+1}/{len(circuits)} → {device}: {job_id[:8]}...")
+                    return device, job_id
+                else:
+                    print(f"Circuit {index+1}/{len(circuits)} → {device}: failed")
+                    return device, None
+            except Exception as e:
+                print(f"❌ Circuit {index+1} submission error: {e}")
+                return device, None
 
-                    if submit_interval > 0 and i < len(circuits) - 1:
-                        time.sleep(submit_interval)
+        with ThreadPoolExecutor(max_workers=parallel_workers) as executor:
+            for device in devices:
+                for i, circuit in enumerate(circuits):
+                    submission_tasks.append(executor.submit(submit_single_circuit, circuit, device, i))
 
-                except Exception as e:
-                    print(f"❌ Circuit {i+1} submission error: {e}")
+            for future in as_completed(submission_tasks):
+                device, job_id = future.result()
+                if job_id:
+                    all_job_ids[device].append(job_id)
 
-            return device, device_jobs
-
-        # 並列投入
-        with ThreadPoolExecutor(max_workers=len(devices)) as executor:
-            futures = [executor.submit(submit_to_device, device) for device in devices]
-
-            for future in as_completed(futures):
-                device, job_ids = future.result()
-                all_job_ids[device] = job_ids
-                print(f"✅ {device}: {len(job_ids)} jobs submitted")
+        for device, jobs in all_job_ids.items():
+            print(f"✅ {device}: {len(jobs)} jobs submitted")
 
         return all_job_ids
     
@@ -232,9 +230,9 @@ class BaseExperiment(ABC):
         
         return all_job_ids
 
-    def get_oqtopus_result(self, job_id: str, timeout_minutes: int = 30) -> Optional[Dict[str, Any]]:
+    def get_oqtopus_result(self, job_id: str, timeout_minutes: int = 30, verbose_log: bool = False) -> Optional[Dict[str, Any]]:
         """
-        OQTOPUS結果取得（ローカル結果もサポート）
+        OQTOPUS結果取得（正しいジョブステータス取得対応）
         """
         # ローカル結果が利用可能な場合
         if hasattr(self, '_local_results') and job_id in self._local_results:
@@ -244,15 +242,47 @@ class BaseExperiment(ABC):
             return None
 
         try:
-            print(f"⏳ Waiting for result: {job_id[:8]}...")
+            # 詳細ログは有効時のみ出力
+            if verbose_log:
+                print(f"⏳ Waiting for result: {job_id[:8]}...")
 
             job = self.oqtopus_backend.retrieve_job(job_id)
-
-            # 結果待機
-            max_wait = timeout_minutes * 60
-            wait_time = 0
-
-            while wait_time < max_wait:
+            
+            # 正しいジョブステータス取得方法を使用
+            try:
+                job_dict = job._job.to_dict()
+                status = job_dict.get('status', 'unknown')
+                
+                # ステータスが終了状態の場合のみ結果取得を試行
+                if status == 'succeeded':
+                    try:
+                        result = job.result()
+                        if result and hasattr(result, 'counts'):
+                            counts = result.counts
+                            return {
+                                'job_id': job_id,
+                                'counts': dict(counts),
+                                'shots': sum(counts.values()),
+                                'status': status,
+                                'success': True
+                            }
+                    except Exception as result_error:
+                        if verbose_log:
+                            print(f"⚠️ Result extraction failed for {job_id[:8]}: {result_error}")
+                
+                # ステータス情報を含む辞書を返す
+                return {
+                    'job_id': job_id,
+                    'status': status,
+                    'success': status == 'succeeded',
+                    'job_info': job_dict
+                }
+                
+            except Exception as status_error:
+                if verbose_log:
+                    print(f"⚠️ Status check failed for {job_id[:8]}: {status_error}")
+                
+                # フォールバック: 旧式メソッドでresult取得を試行
                 try:
                     result = job.result()
                     if result and hasattr(result, 'counts'):
@@ -264,14 +294,18 @@ class BaseExperiment(ABC):
                             'success': True
                         }
                 except:
-                    time.sleep(5)
-                    wait_time += 5
-
-            print(f"⏳ Timeout waiting for {job_id[:8]}...")
-            return None
+                    pass
+                    
+                # 完全失敗の場合
+                return {
+                    'job_id': job_id,
+                    'status': 'unknown',
+                    'success': False
+                }
 
         except Exception as e:
-            print(f"❌ Result collection failed for {job_id}: {e}")
+            if verbose_log:
+                print(f"❌ Result collection failed for {job_id}: {e}")
             return None
 
     def collect_results_parallel(self, job_ids: Dict[str, List[str]],

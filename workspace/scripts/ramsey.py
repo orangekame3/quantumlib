@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-T1 CLI - QuantumLib T1 Decay Experiment
+Ramsey CLI - QuantumLib Ramsey振動実験
 """
 from typing import Annotated, Any
 
@@ -21,88 +21,95 @@ from quantumlib.cli.base_cli import (
     DeviceType,
     ExperimentBackend,
 )
-from quantumlib.experiments.t1.t1_experiment import T1Experiment
+from quantumlib.experiments.ramsey.ramsey_experiment import RamseyExperiment
 
 
-class T1ExperimentCLI(BaseExperimentCLI):
+class RamseyExperimentCLI(BaseExperimentCLI):
     """
-    T1実験専用CLI（QuantumLib統合フレームワーク使用）
+    Ramsey実験専用CLI（QuantumLib統合フレームワーク使用）
     """
 
     def __init__(self):
         super().__init__(
-            experiment_name="T1", help_text="QuantumLib T1 Decay Experiment"
+            experiment_name="Ramsey", help_text="QuantumLib Ramsey Oscillation Experiment"
         )
 
     def get_experiment_class(self):
-        """T1実験クラスを返す"""
-        return T1Experiment
+        """Ramsey実験クラスを返す"""
+        return RamseyExperiment
 
     def get_experiment_specific_options(self) -> dict[str, Any]:
-        """T1実験固有のオプション"""
+        """Ramsey実験固有のオプション"""
         return {
             "delay_points": 51,
-            "max_delay": 100000,
+            "max_delay": 200000,
+            "detuning": 0.0,
         }
 
     def create_experiment_config_display(self, **kwargs) -> str:
-        """T1実験設定表示"""
+        """Ramsey実験設定表示"""
         devices = kwargs.get("devices", ["qulacs"])
         backend = kwargs.get("backend", "local_simulator")
         shots = kwargs.get("shots", 1000)
         parallel = kwargs.get("parallel", 4)
         delay_points = kwargs.get("delay_points", 51)
-        max_delay = kwargs.get("max_delay", 100000)
+        max_delay = kwargs.get("max_delay", 200000)
+        detuning = kwargs.get("detuning", 0.0)
         return (
-            f"QuantumLib T1 Decay Experiment\\n"
+            f"QuantumLib Ramsey Oscillation Experiment\\n"
             f"Devices: {', '.join(devices)}\\n"
             f"Backend: {backend}\\n"
             f"Shots: {shots:,} per delay | Points: {delay_points}\\n"
-            f"Max Delay: {max_delay/1000:.1f} μs\\n"
+            f"Max Delay: {max_delay/1000:.1f} μs | Detuning: {detuning} MHz\\n"
             f"Parallel: {parallel} threads\\n"
             f"Total measurements: {delay_points} delay points"
         )
 
     def generate_circuits(
-        self, experiment_instance: T1Experiment, **kwargs
+        self, experiment_instance: RamseyExperiment, **kwargs
     ) -> tuple[list[Any], dict]:
-        """T1回路生成"""
+        """Ramsey回路生成"""
         delay_points = kwargs.get("delay_points", 51)
-        max_delay = kwargs.get("max_delay", 100000)
+        max_delay = kwargs.get("max_delay", 200000)
+        detuning = kwargs.get("detuning", 0.0)
 
         # デフォルトの遅延時間設定
-        delay_times = np.logspace(np.log10(100), np.log10(100 * 1000), num=51)
+        delay_times = np.logspace(np.log10(50), np.log10(200 * 1000), num=51)
 
         circuits = experiment_instance.create_circuits(
             delay_points=delay_points,
             max_delay=max_delay,
+            detuning=detuning,
             delay_times=delay_times,
         )
 
         self.console.print(
             f"   Delay range: {delay_points} points from {delay_times[0]:.1f} to {delay_times[-1]:.1f} ns"
         )
+        self.console.print(f"   Detuning: {detuning} MHz")
 
         return circuits, {
             "delay_times": delay_times,
             "max_delay": max_delay,
             "delay_points": delay_points,
+            "detuning": detuning,
         }
 
     def process_results(
         self,
-        experiment_instance: T1Experiment,
+        experiment_instance: RamseyExperiment,
         raw_results: dict,
         circuits: list,
         metadata: Any,
         **kwargs,
     ) -> dict:
-        """T1結果処理"""
+        """Ramsey結果処理"""
         delay_times = metadata["delay_times"]
         max_delay = metadata["max_delay"]
         delay_points = metadata["delay_points"]
+        detuning = metadata["detuning"]
 
-        self.console.print("   → Analyzing T1 decay...")
+        self.console.print("   → Analyzing Ramsey oscillation...")
         analysis = experiment_instance.analyze_results(raw_results)
 
         # experiment_params設定（保存用）
@@ -110,13 +117,14 @@ class T1ExperimentCLI(BaseExperimentCLI):
             "delay_times": delay_times.tolist(),
             "max_delay": max_delay,
             "delay_points": delay_points,
+            "detuning": detuning,
         }
 
         return {
             "delay_times": delay_times,
             "device_results": analysis["device_results"],
             "analysis": analysis,
-            "method": "t1_quantumlib_framework",
+            "method": "ramsey_quantumlib_framework",
         }
 
     def run(
@@ -135,10 +143,16 @@ class T1ExperimentCLI(BaseExperimentCLI):
         ] = 51,
         max_delay: Annotated[
             float, typer.Option(help="Maximum delay time [ns]")
-        ] = 100000,
+        ] = 200000,
+        detuning: Annotated[
+            float, typer.Option(help="Frequency detuning [MHz]")
+        ] = 0.0,
+        enable_fitting: Annotated[
+            bool, typer.Option("--enable-fitting", help="Enable T2*/detuning parameter fitting")
+        ] = True,
     ):
         """
-        Run T1 decay experiment
+        Run Ramsey oscillation experiment
         """
         # フレームワークの共通実行ロジックを呼び出し
         self._execute_experiment(
@@ -151,14 +165,16 @@ class T1ExperimentCLI(BaseExperimentCLI):
             no_plot=no_plot,
             show_plot=show_plot,
             verbose=verbose,
-            delay_points=delay_points,  # T1固有オプション
-            max_delay=max_delay,  # T1固有オプション
+            delay_points=delay_points,  # Ramsey固有オプション
+            max_delay=max_delay,  # Ramsey固有オプション
+            detuning=detuning,  # Ramsey固有オプション
+            enable_fitting=enable_fitting,  # フィッティング有効化オプション
         )
 
 
 # CLIインスタンス作成と実行
 def main():
-    cli = T1ExperimentCLI()
+    cli = RamseyExperimentCLI()
     cli.start()
 
 
