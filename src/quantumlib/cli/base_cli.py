@@ -197,6 +197,29 @@ class BaseExperimentCLI(ABC):
 
             return raw_results
         
+        # CHSH実験の場合は専用の並列化実装を使用（プログレスバーなし）
+        if hasattr(experiment_instance, '_submit_chsh_circuits_parallel_with_order'):
+            self.console.print("   → Using CHSH-specific parallel execution")
+            
+            # プログレスバーなしの簡単なアプローチでスタック問題を回避
+            self.console.print("   📊 Submitting CHSH circuits...")
+            job_data = experiment_instance._submit_chsh_circuits_parallel_with_order(
+                circuits, devices, shots, parallel_workers
+            )
+            self.console.print("   ✅ CHSH circuits submitted")
+            
+            self.console.print("   📊 Collecting CHSH results...")
+            try:
+                raw_results = experiment_instance._collect_chsh_results_parallel_with_order(
+                    job_data, parallel_workers
+                )
+                self.console.print("   ✅ CHSH results collected")
+            except Exception as e:
+                self.console.print(f"   ❌ CHSH collection failed: {e}")
+                raise
+
+            return raw_results
+        
         # 通常の並列実行（従来通り）
         with Progress(
             SpinnerColumn(),

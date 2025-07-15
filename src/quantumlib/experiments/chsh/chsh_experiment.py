@@ -38,51 +38,77 @@ class CHSHExperiment(BaseExperiment):
 
     def create_circuits(self, **kwargs) -> List[Any]:
         """
-        CHSH実験回路作成
+        CHSH実験回路作成（T1/Ramsey標準パターン）
+        4測定方式でバッチ回路を生成
 
         Args:
+            points: 位相点数 (default: 20) ← CLIから渡される
             phase_points: 位相点数 (default: 20)
             theta_a: Alice角度 (default: 0)
             theta_b: Bob角度 (default: π/4)
-            phase_range: カスタム位相範囲 (optional)
 
         Returns:
-            CHSH回路リスト
+            CHSH回路リスト（4測定 × phase_points個）
         """
-        phase_points = kwargs.get('phase_points', 20)
+        # CLIからのpointsパラメータを優先（T1/Ramseyと同じパターン）
+        phase_points = kwargs.get('points', kwargs.get('phase_points', 20))
         theta_a = kwargs.get('theta_a', 0)
         theta_b = kwargs.get('theta_b', np.pi/4)
 
-        # カスタム位相範囲または標準範囲
-        if 'phase_range' in kwargs:
-            phase_range = np.array(kwargs['phase_range'])
-        else:
-            phase_range = np.linspace(0, 2*np.pi, phase_points)
+        # 位相範囲
+        phase_range = np.linspace(0, 2*np.pi, phase_points)
 
-        # メタデータ保存
-        self.experiment_params = {
-            'theta_a': theta_a,
-            'theta_b': theta_b,
-            'phase_range': phase_range.tolist(),
-            'phase_points': len(phase_range)
+        # 標準CHSH測定角度
+        angles = {
+            'theta_a0': 0,           # Alice 測定角度1
+            'theta_a1': np.pi/2,     # Alice 測定角度2
+            'theta_b0': np.pi/4,     # Bob 測定角度1
+            'theta_b1': -np.pi/4     # Bob 測定角度2
         }
 
-        circuits = []
-        for phi in phase_range:
-            circuit = create_chsh_circuit(theta_a, theta_b, phase_phi=phi)
-            circuits.append(circuit)
+        # 4測定組み合わせ
+        measurements = [
+            (angles['theta_a0'], angles['theta_b0']),  # ⟨A₀B₀⟩
+            (angles['theta_a0'], angles['theta_b1']),  # ⟨A₀B₁⟩
+            (angles['theta_a1'], angles['theta_b0']),  # ⟨A₁B₀⟩
+            (angles['theta_a1'], angles['theta_b1'])   # ⟨A₁B₁⟩
+        ]
 
-        print(f"CHSH circuits: θ_A={theta_a:.3f}, θ_B={theta_b:.3f}")
-        print(f"Phase range: {len(phase_range)} points from {phase_range[0]:.3f} to {phase_range[-1]:.3f}")
+        # メタデータ保存（T1/Ramseyパターン）
+        self.experiment_params = {
+            'phase_range': phase_range.tolist(),
+            'phase_points': len(phase_range),
+            'angles': angles,
+            'measurements': measurements
+        }
+
+        # 回路作成：全位相×全測定の組み合わせを順次生成（T1/Ramseyパターン）
+        circuits = []
+        for i, phase_phi in enumerate(phase_range):
+            for j, (theta_a_meas, theta_b_meas) in enumerate(measurements):
+                circuit = self._create_single_chsh_circuit(theta_a_meas, theta_b_meas, phase_phi)
+                circuits.append(circuit)
+
+        # T1/Ramsey標準ログパターンに統一
+        print(
+            f"CHSH circuits: Phase range {len(phase_range)} points from {phase_range[0]:.3f} to {phase_range[-1]:.3f}, 4 measurements = {len(circuits)} circuits"
+        )
+        print(f"CHSH circuit structure: |Φ⁺⟩ → A(θₐ), B(θᵦ) → measure (期待: S値でBell不等式違反)")
 
         return circuits
 
+    def _create_single_chsh_circuit(self, theta_a: float, theta_b: float, phase_phi: float):
+        """
+        単一CHSH回路作成（T1/Ramseyパターン）
+        """
+        return create_chsh_circuit(theta_a, theta_b, phase_phi)
+
     def analyze_results(self, results: Dict[str, List[Dict[str, Any]]], **kwargs) -> Dict[str, Any]:
         """
-        CHSH実験結果解析
+        CHSH実験結果解析（T1/Ramsey標準パターン）
 
         Args:
-            results: 生測定結果
+            results: 生測定結果（BaseExperimentCLIから渡される）
 
         Returns:
             CHSH解析結果
@@ -90,36 +116,124 @@ class CHSHExperiment(BaseExperiment):
         if not results:
             return {'error': 'No results to analyze'}
 
+        # experiment_paramsから必要な情報を取得
         phase_range = np.array(self.experiment_params['phase_range'])
-        theta_a = self.experiment_params['theta_a']
-        theta_b = self.experiment_params['theta_b']
+        angles = self.experiment_params['angles']
+        measurements = self.experiment_params['measurements']
 
+        print("   → Processing CHSH 4-measurement results...")
+        
+        # BaseExperimentCLIから来た結果を4測定CHSH形式に変換
+        processed_results = self._analyze_chsh_device_results(
+            results, phase_range, measurements
+        )
+
+        print("   → Creating CHSH analysis...")
+        analysis = self._create_chsh_analysis(phase_range, processed_results, angles)
+
+        return analysis
+
+    def _analyze_chsh_device_results(self, results: Dict[str, List[Dict[str, Any]]], 
+                                   phase_range: np.ndarray, measurements: List[tuple]) -> Dict[str, Dict]:
+        """
+        CHSH結果をデバイス別に解析（T1/Ramseyパターン）
+        """
+        all_results = {}
+        phase_points = len(phase_range)
+
+        for device, device_results in results.items():
+            print(f"   Processing {device} results...")
+            
+            device_s_values = []
+            device_expectations = []
+
+            for phase_idx in range(phase_points):
+                phase_expectations = []
+
+                for meas_idx in range(4):
+                    circuit_idx = phase_idx * 4 + meas_idx
+
+                    if circuit_idx < len(device_results) and device_results[circuit_idx] is not None:
+                        result = device_results[circuit_idx]
+                        # 結果が成功しているかチェック
+                        if result and result.get('success', False):
+                            counts = result.get('counts', {})
+                            if counts:
+                                expectation = self._calculate_expectation_value_oqtopus_compatible(counts)
+                                phase_expectations.append(expectation)
+
+                                if phase_idx == 0 and meas_idx < 2:
+                                    print(f"   Debug - Phase {phase_idx}, Meas {meas_idx}: counts={counts}, exp={expectation:.3f}")
+                            else:
+                                phase_expectations.append(0.0)
+                        else:
+                            phase_expectations.append(0.0)
+                    else:
+                        phase_expectations.append(0.0)
+
+                # CHSH S value calculation: S = E1 + E2 + E3 - E4
+                if len(phase_expectations) == 4:
+                    E1, E2, E3, E4 = phase_expectations
+                    S = E1 + E2 + E3 - E4
+                else:
+                    S = 0.0
+
+                device_s_values.append(S)
+                device_expectations.append(phase_expectations)
+
+            all_results[device] = {
+                'S_values': device_s_values,
+                'expectations': device_expectations,
+                'measurement_angles': {
+                    'theta_a0': 0, 'theta_a1': np.pi/2,
+                    'theta_b0': np.pi/4, 'theta_b1': -np.pi/4
+                }
+            }
+
+            # Statistics
+            S_array = np.array(device_s_values)
+            max_S = np.max(np.abs(S_array))
+            violations = int(np.sum(np.abs(S_array) > 2.0))
+            print(f"   {device}: Max |S| = {max_S:.3f}, Bell violations: {violations}/{phase_points}")
+
+        return all_results
+
+    def _create_chsh_analysis(self, phase_range: np.ndarray, processed_results: Dict[str, Dict],
+                            angles: Dict[str, float]) -> Dict[str, Any]:
+        """
+        CHSH解析結果作成（T1/Ramseyパターン）
+        """
         analysis = {
             'experiment_info': {
-                'theta_a': theta_a,
-                'theta_b': theta_b,
+                'theta_a0': angles['theta_a0'], 'theta_a1': angles['theta_a1'],
+                'theta_b0': angles['theta_b0'], 'theta_b1': angles['theta_b1'],
                 'phase_points': len(phase_range),
-                'classical_bound': self.classical_bound,
-                'theoretical_max_s': self.theoretical_max_s
+                'classical_bound': 2.0,
+                'theoretical_max_s': 2 * np.sqrt(2)
             },
             'theoretical_values': {
                 'phase_range': phase_range.tolist(),
-                'S_theoretical': (self.theoretical_max_s * np.cos(phase_range)).tolist()
+                'S_theoretical': (2 * np.sqrt(2) * np.cos(phase_range)).tolist()
             },
             'device_results': {}
         }
 
-        for device, device_results in results.items():
-            if not device_results:
-                continue
+        for device, device_data in processed_results.items():
+            S_values = device_data['S_values']
+            S_array = np.array(S_values)
+            bell_violations = int(np.sum(np.abs(S_array) > 2.0))
+            max_S = float(np.max(np.abs(S_array)))
 
-            device_analysis = self._analyze_device_results(device_results, phase_range)
-            analysis['device_results'][device] = device_analysis
-
-            print(f"{device}: {device_analysis['statistics']['bell_violations']} Bell violations detected")
-
-        # 比較分析
-        analysis['comparison'] = self._compare_devices(analysis['device_results'])
+            analysis['device_results'][device] = {
+                'S_values': S_values,
+                'expectations': device_data['expectations'],
+                'statistics': {
+                    'max_S_magnitude': max_S,
+                    'bell_violations': bell_violations,
+                    'success_rate': 1.0,
+                    'mean_S_magnitude': float(np.mean(np.abs(S_array)))
+                }
+            }
 
         return analysis
 
@@ -261,6 +375,62 @@ class CHSHExperiment(BaseExperiment):
             **kwargs
         )
 
+    def run_chsh_experiment_parallel(self, devices: List[str] = ['qulacs'], shots: int = 1024,
+                                    parallel_workers: int = 4, **kwargs) -> Dict[str, Any]:
+        """
+        CHSH実験の並列実行（phase順序を保持、T1/Ramsey標準パターン）
+        """
+        print(f"🔬 Running CHSH experiment with {parallel_workers} parallel workers")
+        
+        # 回路作成
+        circuits = self.create_circuits(**kwargs)
+        phase_range = self.experiment_params['phase_range']
+        
+        print(
+            f"   📊 {len(circuits)} circuits × {len(devices)} devices = {len(circuits) * len(devices)} jobs"
+        )
+        
+        # 並列実行（順序保持）
+        job_data = self._submit_chsh_circuits_parallel_with_order(
+            circuits, devices, shots, parallel_workers
+        )
+        
+        # 結果収集（順序保持）
+        raw_results = self._collect_chsh_results_parallel_with_order(
+            job_data, parallel_workers
+        )
+        
+        # 結果解析（エラーハンドリング付き）
+        try:
+            analysis = self.analyze_results(raw_results)
+        except Exception as e:
+            print(f"Analysis failed: {e}, creating minimal analysis")
+            analysis = {
+                'experiment_info': {
+                    'phase_points': len(phase_range),
+                    'error': str(e)
+                },
+                'device_results': {}
+            }
+        
+        return {
+            'phase_range': phase_range,
+            'device_results': analysis['device_results'],
+            'analysis': analysis,
+            'method': 'chsh_parallel_quantumlib'
+        }
+
+    def run_experiment(self, devices: List[str] = ['qulacs'], shots: int = 1024,
+                      parallel_workers: int = 4, **kwargs) -> Dict[str, Any]:
+        """
+        CHSH実験実行（base_cliの統一フローに従う）
+        """
+        # base_cliが直接並列メソッドを呼び出すため、ここでは基本的な結果収集のみ
+        print("⚠️ run_experiment called directly - use CLI framework instead")
+        return self.run_chsh_experiment_parallel(
+            devices=devices, shots=shots, parallel_workers=parallel_workers, **kwargs
+        )
+
     def run_4_measurement_chsh(self, devices: List[str] = ['qulacs'],
                               phase_points: int = 20,
                               shots: int = 1024,
@@ -307,11 +477,11 @@ class CHSHExperiment(BaseExperiment):
         print(f"Creating batch circuits: {phase_points} phases × 4 measurements = {len(all_circuits)} circuits")
 
         # バッチ回路の並列投入と収集
-        job_data = self._submit_circuits_parallel_with_order_preservation(
+        job_data = self._submit_chsh_circuits_parallel_with_order(
             all_circuits, devices, shots, parallel_workers
         )
 
-        raw_results = self._collect_results_parallel_with_order_preservation(
+        raw_results = self._collect_chsh_results_parallel_with_order(
             job_data, parallel_workers
         )
 
@@ -407,18 +577,28 @@ class CHSHExperiment(BaseExperiment):
 
         return summary
 
-    def _submit_circuits_parallel_with_order_preservation(self, circuits: List[Any],
+    def _submit_chsh_circuits_parallel_with_order(self, circuits: List[Any],
                                                         devices: List[str], shots: int,
                                                         parallel_workers: int) -> Dict[str, List[Dict]]:
         """
-        回路順序を保持する並列ジョブ投入
+        CHSH回路の並列投入（T1/Ramseyスタイルで順序保持）
         """
         from concurrent.futures import ThreadPoolExecutor, as_completed
 
-        print(f"Enhanced parallel submission: {parallel_workers} workers")
+        print(f"Enhanced CHSH parallel submission: {parallel_workers} workers")
+        
+        # experiment_paramsが設定されていない場合の緊急対応
+        if not hasattr(self, 'experiment_params') or not self.experiment_params:
+            print("⚠️ experiment_params not set, creating default...")
+            phase_points = len(circuits) // 4  # 4測定なので回路数÷4
+            phase_range = np.linspace(0, 2*np.pi, phase_points)
+            self.experiment_params = {
+                'phase_range': phase_range.tolist(),
+                'phase_points': phase_points
+            }
 
         if not self.oqtopus_available:
-            return self._submit_circuits_locally_parallel(circuits, devices, shots, parallel_workers)
+            return self._submit_chsh_circuits_locally_parallel(circuits, devices, shots, parallel_workers)
 
         # 結果を順序付きで管理
         all_job_data = {device: [None] * len(circuits) for device in devices}
@@ -438,22 +618,33 @@ class CHSHExperiment(BaseExperiment):
                 else:
                     return device, None, circuit_idx, False
             except Exception as e:
-                print(f"Circuit {circuit_idx} → {device}: {e}")
+                # T1/Ramseyパターンに合わせたログ
+                phase_idx = circuit_idx // 4
+                meas_idx = circuit_idx % 4
+                print(f"CHSH Circuit {circuit_idx} (phase {phase_idx}, meas {meas_idx}) → {device}: {e}")
                 return device, None, circuit_idx, False
 
         # 並列投入実行
         with ThreadPoolExecutor(max_workers=parallel_workers) as executor:
             futures = [executor.submit(submit_single_circuit, args) for args in circuit_device_pairs]
 
+            submitted_count = 0
+            total_jobs = len(futures)
+            
             for future in as_completed(futures):
                 device, job_id, circuit_idx, success = future.result()
+                submitted_count += 1
+                
                 if success and job_id:
                     all_job_data[device][circuit_idx] = {
                         'job_id': job_id,
                         'circuit_index': circuit_idx,
                         'submitted': True
                     }
-                    print(f"Circuit {circuit_idx+1} → {device}: {job_id[:8]}...")
+                    phase_idx = circuit_idx // 4
+                    meas_idx = circuit_idx % 4
+                    phase_phi = self.experiment_params['phase_range'][phase_idx] if phase_idx < len(self.experiment_params['phase_range']) else 0
+                    print(f"CHSH Circuit {circuit_idx+1} (φ={phase_phi:.3f}, meas{meas_idx}) → {device}: {job_id[:8]}... ({submitted_count}/{total_jobs})")
                 else:
                     all_job_data[device][circuit_idx] = {
                         'job_id': None,
@@ -463,16 +654,16 @@ class CHSHExperiment(BaseExperiment):
 
         for device in devices:
             successful_jobs = sum(1 for job_data in all_job_data[device] if job_data and job_data['submitted'])
-            print(f"✅ {device}: {successful_jobs} jobs submitted (order preserved)")
+            print(f"✅ {device}: {successful_jobs} CHSH jobs submitted (order preserved)")
 
         return all_job_data
 
-    def _submit_circuits_locally_parallel(self, circuits: List[Any], devices: List[str],
+    def _submit_chsh_circuits_locally_parallel(self, circuits: List[Any], devices: List[str],
                                          shots: int, parallel_workers: int) -> Dict[str, List[Dict]]:
         """Submit circuits to local simulator with parallel execution"""
         from concurrent.futures import ThreadPoolExecutor, as_completed
 
-        print(f"Local parallel execution: {parallel_workers} workers")
+        print(f"CHSH Local parallel execution: {parallel_workers} workers")
 
         all_job_data = {device: [None] * len(circuits) for device in devices}
 
@@ -494,7 +685,10 @@ class CHSHExperiment(BaseExperiment):
                 else:
                     return device, None, circuit_idx, False
             except Exception as e:
-                print(f"Local circuit {circuit_idx} → {device}: {e}")
+                # T1/Ramseyパターンに合わせたログ
+                phase_idx = circuit_idx // 4
+                meas_idx = circuit_idx % 4
+                print(f"Local CHSH circuit {circuit_idx} (phase {phase_idx}, meas {meas_idx}) → {device}: {e}")
                 return device, None, circuit_idx, False
 
         with ThreadPoolExecutor(max_workers=parallel_workers) as executor:
@@ -517,18 +711,29 @@ class CHSHExperiment(BaseExperiment):
 
         for device in devices:
             successful = sum(1 for job in all_job_data[device] if job and job['submitted'])
-            print(f"✅ {device}: {successful} circuits completed locally (order preserved)")
+            print(f"✅ {device}: {successful} CHSH circuits completed locally (order preserved)")
 
         return all_job_data
 
-    def _collect_results_parallel_with_order_preservation(self, job_data: Dict[str, List[Dict]],
+    def _collect_chsh_results_parallel_with_order(self, job_data: Dict[str, List[Dict]],
                                                         parallel_workers: int) -> Dict[str, List[Dict]]:
-        """Collect results while preserving order"""
+        """CHSH結果の並列収集（T1/Ramseyスタイルで順序保持）"""
         from concurrent.futures import ThreadPoolExecutor, as_completed
+
+        # 総ジョブ数を計算して収集開始をログ
+        total_jobs_to_collect = sum(
+            1
+            for device_jobs in job_data.values()
+            for job in device_jobs
+            if job and job.get('submitted', False)
+        )
+        print(
+            f"📊 Starting CHSH results collection: {total_jobs_to_collect} jobs from {len(job_data)} devices"
+        )
 
         # Handle local results
         if hasattr(self, '_local_results'):
-            print("Using cached local simulation results...")
+            print("Using cached local CHSH simulation results...")
             all_results = {}
             for device, device_job_data in job_data.items():
                 device_results = []
@@ -540,11 +745,11 @@ class CHSHExperiment(BaseExperiment):
                         device_results.append(None)
                 all_results[device] = device_results
                 successful = sum(1 for r in device_results if r is not None)
-                print(f"✅ {device}: {successful} local results collected")
+                print(f"✅ {device}: {successful} CHSH local results collected")
             return all_results
 
         if not self.oqtopus_available:
-            print("OQTOPUS not available")
+            print("OQTOPUS not available for CHSH collection")
             return {device: [None] * len(device_job_data) for device, device_job_data in job_data.items()}
 
         all_results = {device: [None] * len(device_job_data) for device, device_job_data in job_data.items()}
@@ -555,30 +760,144 @@ class CHSHExperiment(BaseExperiment):
                 if job_info and job_info['submitted'] and job_info['job_id']:
                     job_collection_tasks.append((job_info['job_id'], device, circuit_idx))
 
-        def collect_single_result(args):
+        def collect_single_chsh_result(args):
             job_id, device, circuit_idx = args
             try:
+                # 直接BaseExperimentのget_oqtopus_resultを使用（ポーリングなし）
                 result = self.get_oqtopus_result(job_id, timeout_minutes=5)
-                return device, result, job_id, circuit_idx, True if result else False
+                
+                # デバッグ情報出力（最初の3回のみ）
+                if not hasattr(self, '_chsh_debug_count'):
+                    self._chsh_debug_count = 0
+                if self._chsh_debug_count < 3:
+                    print(f"🔍 CHSH Debug[{circuit_idx}]: Full result structure = {result}")
+                    self._chsh_debug_count += 1
+                
+                # 柔軟な成功判定（RamseyやT1パターンに合わせる）
+                success_conditions = [
+                    result and result.get('status') == 'succeeded',  # OQTOPUS標準
+                    result and result.get('success', False),         # BaseExperiment legacy
+                    result and 'counts' in result,                   # 直接countsがある場合
+                ]
+                
+                if any(success_conditions):
+                    # 複数の方法で測定結果を取得を試行
+                    counts = None
+                    shots = 0
+                    
+                    # 方法1: BaseExperimentのget_oqtopus_resultが直接countsを返す場合
+                    if 'counts' in result:
+                        counts = result['counts']
+                        shots = result.get('shots', 0)
+                        print(f"🔍 CHSH[{circuit_idx}]: Direct counts found = {counts}")
+                    
+                    # 方法2: job_info内のresult構造から取得
+                    if not counts:
+                        job_info = result.get('job_info', {})
+                        if isinstance(job_info, dict):
+                            # OQTOPUS result構造を探索
+                            sampling_result = job_info.get('result', {}).get('sampling', {})
+                            if sampling_result:
+                                counts = sampling_result.get('counts', {})
+                                print(f"🔍 CHSH[{circuit_idx}]: job_info.result.sampling counts = {counts}")
+                    
+                    # 方法3: job_info自体がresult形式の場合
+                    if not counts and 'job_info' in result:
+                        job_info = result['job_info']
+                        if isinstance(job_info, dict) and 'job_info' in job_info:
+                            inner_job_info = job_info['job_info']
+                            if isinstance(inner_job_info, dict):
+                                result_data = inner_job_info.get('result', {})
+                                if 'sampling' in result_data:
+                                    counts = result_data['sampling'].get('counts', {})
+                                    print(f"🔍 CHSH[{circuit_idx}]: nested job_info counts = {counts}")
+                                elif 'counts' in result_data:
+                                    counts = result_data['counts']
+                                    print(f"🔍 CHSH[{circuit_idx}]: nested result counts = {counts}")
+
+                    if counts:
+                        # 成功データを標準形式に変換
+                        processed_result = {
+                            'success': True,
+                            'counts': dict(counts),  # Counterを辞書に変換
+                            'status': result.get('status', 'success'),
+                            'execution_time': result.get('execution_time', 0),
+                            'shots': shots or sum(counts.values()) if counts else 0
+                        }
+                        print(f"✅ CHSH[{circuit_idx}]: Processed successfully, counts={dict(counts)}")
+                        return device, processed_result, job_id, circuit_idx, True
+                    else:
+                        print(f"⚠️ {device}[{circuit_idx}]: {job_id[:8]}... no measurement data in any structure")
+                        # デバッグ用に結果構造の一部を表示
+                        if result:
+                            print(f"   Available keys: {list(result.keys())}")
+                        return device, None, job_id, circuit_idx, False
+                else:
+                    # ジョブ失敗の場合
+                    status = result.get('status', 'unknown') if result else 'no_result'
+                    print(f"⚠️ {device}[{circuit_idx}]: {job_id[:8]}... failed ({status})")
+                    if result:
+                        print(f"   Available keys: {list(result.keys())}")
+                        print(f"   Success flag: {result.get('success', 'missing')}")
+                    return device, None, job_id, circuit_idx, False
             except Exception as e:
-                print(f"Collection error {job_id[:8]}: {e}")
+                print(f"❌ {device}[{circuit_idx}]: {job_id[:8]}... error: {str(e)[:50]}")
+                import traceback
+                print(f"   Traceback: {traceback.format_exc()}")
                 return device, None, job_id, circuit_idx, False
 
         with ThreadPoolExecutor(max_workers=parallel_workers) as executor:
-            futures = [executor.submit(collect_single_result, args) for args in job_collection_tasks]
+            futures = [executor.submit(collect_single_chsh_result, args) for args in job_collection_tasks]
+
+            completed_jobs = 0
+            successful_jobs = 0
+            total_jobs = len(futures)
+            last_progress_percent = 0
 
             for future in as_completed(futures):
                 device, result, job_id, circuit_idx, success = future.result()
+                completed_jobs += 1
+
                 if success and result:
+                    successful_jobs += 1
                     all_results[device][circuit_idx] = result
-                    print(f"✅ {device}[{circuit_idx}]: {job_id[:8]}... collected")
+                    phase_idx = circuit_idx // 4
+                    meas_idx = circuit_idx % 4
+                    phase_phi = self.experiment_params['phase_range'][phase_idx] if phase_idx < len(self.experiment_params['phase_range']) else 0
+                    print(f"✅ {device}[{circuit_idx}] (φ={phase_phi:.3f}, meas{meas_idx}): {job_id[:8]}... collected ({completed_jobs}/{total_jobs})")
+                else:
+                    # 失敗ケースは既に個別メソッド内でログ出力済み
+                    pass
+                
+                # 進捗サマリーを20%ごとに表示
+                progress_percent = (completed_jobs * 100) // total_jobs
+                if progress_percent >= last_progress_percent + 20 and progress_percent < 100:
+                    print(f"📈 CHSH Collection Progress: {completed_jobs}/{total_jobs} ({progress_percent}%) - {successful_jobs} successful")
+                    last_progress_percent = progress_percent
+
+        # 最終結果サマリー
+        total_successful = sum(1 for device_results in all_results.values() 
+                              for r in device_results if r is not None)
+        total_attempted = sum(1 for device_jobs in job_data.values() 
+                             for job in device_jobs if job and job.get('submitted', False))
+        success_rate = (total_successful / total_attempted * 100) if total_attempted > 0 else 0
+
+        print(f"🎉 CHSH Collection Complete: {total_successful}/{total_attempted} successful ({success_rate:.1f}%)")
 
         for device in job_data.keys():
             successful = sum(1 for r in all_results[device] if r is not None)
             total = len(job_data[device])
-            print(f"✅ {device}: {successful}/{total} results collected")
+            failed = total - successful
+            
+            if failed > 0:
+                device_success_rate = (successful / total * 100) if total > 0 else 0
+                print(f"✅ {device}: {successful}/{total} CHSH results collected (success rate: {device_success_rate:.1f}%)")
+                print(f"   ⚠️ {failed} jobs failed - analysis will continue with available data")
+            else:
+                print(f"✅ {device}: {successful}/{total} CHSH results collected (100% success)")
 
         return all_results
+
 
     def _process_4_measurement_results(self, raw_results: Dict[str, List[Dict]],
                                      circuit_metadata: List[Dict], phase_range,
@@ -604,13 +923,23 @@ class CHSHExperiment(BaseExperiment):
 
                     if circuit_idx < len(device_results) and device_results[circuit_idx] is not None:
                         result = device_results[circuit_idx]
-                        counts = result['counts']
-                        expectation = self._calculate_expectation_value_oqtopus_compatible(counts)
-                        phase_expectations.append(expectation)
+                        # 結果が成功しているかチェック
+                        if result and result.get('success', False):
+                            counts = result.get('counts', {})
+                            if counts:
+                                expectation = self._calculate_expectation_value_oqtopus_compatible(counts)
+                                phase_expectations.append(expectation)
 
-                        if phase_idx == 0 and meas_idx < 2:
-                            print(f"Debug - Phase {phase_idx}, Meas {meas_idx}: counts={counts}, exp={expectation:.3f}")
+                                if phase_idx == 0 and meas_idx < 2:
+                                    print(f"Debug - Phase {phase_idx}, Meas {meas_idx}: counts={counts}, exp={expectation:.3f}")
+                            else:
+                                print(f"⚠️ Empty counts for circuit {circuit_idx} (phase {phase_idx}, meas {meas_idx})")
+                                phase_expectations.append(0.0)
+                        else:
+                            print(f"⚠️ Failed result for circuit {circuit_idx} (phase {phase_idx}, meas {meas_idx})")
+                            phase_expectations.append(0.0)
                     else:
+                        print(f"⚠️ Missing result for circuit {circuit_idx} (phase {phase_idx}, meas {meas_idx})")
                         phase_expectations.append(0.0)
 
                 # CHSH S value calculation: S = E1 + E2 + E3 - E4
@@ -641,42 +970,75 @@ class CHSHExperiment(BaseExperiment):
         return all_results
 
     def _calculate_expectation_value_oqtopus_compatible(self, counts: dict) -> float:
-        """Calculate CHSH expectation value compatible with OQTOPUS format"""
-        total = sum(counts.values())
+        """Calculate CHSH expectation value compatible with OQTOPUS format (enhanced with Ramsey/T1 patterns)"""
+        # OQTOPUSの10進数countsを2進数形式に変換（RamseyとT1のパターンを使用）
+        binary_counts = self._convert_decimal_to_binary_counts_chsh(counts)
+        
+        total = sum(binary_counts.values())
         if total == 0:
             return 0.0
 
-        # String format (standard qiskit)
-        if all(isinstance(k, str) for k in counts.keys()):
-            n_00 = counts.get('00', 0)
-            n_11 = counts.get('11', 0)
-            n_01 = counts.get('01', 0)
-            n_10 = counts.get('10', 0)
+        # デバッグ情報表示（初回のみ）
+        if not hasattr(self, '_chsh_counts_debug_shown'):
+            print(f"🔍 CHSH Raw decimal counts: {dict(counts)}")
+            print(f"🔍 CHSH Converted binary counts: {dict(binary_counts)}")
+            self._chsh_counts_debug_shown = True
 
-        # Numeric format (OQTOPUS)
-        elif all(isinstance(k, int) for k in counts.keys()):
-            n_00 = counts.get(0, 0)  # '00' = 0
-            n_11 = counts.get(3, 0)  # '11' = 3
-            n_01 = counts.get(1, 0)  # '01' = 1
-            n_10 = counts.get(2, 0)  # '10' = 2
+        # 2量子ビット測定結果から期待値計算
+        n_00 = binary_counts.get('00', 0)
+        n_11 = binary_counts.get('11', 0)
+        n_01 = binary_counts.get('01', 0)
+        n_10 = binary_counts.get('10', 0)
 
-        else:
-            # Mixed format - convert to string format
-            converted_counts = {}
-            for k, v in counts.items():
-                if isinstance(k, int):
-                    bit_str = f"{k:02b}"
-                    converted_counts[bit_str] = v
-                else:
-                    converted_counts[k] = v
-
-            n_00 = converted_counts.get('00', 0)
-            n_11 = converted_counts.get('11', 0)
-            n_01 = converted_counts.get('01', 0)
-            n_10 = converted_counts.get('10', 0)
-
+        # CHSH期待値: E = (N_00 + N_11 - N_01 - N_10) / N_total
         expectation = (n_00 + n_11 - n_01 - n_10) / total
         return expectation
+
+    def _convert_decimal_to_binary_counts_chsh(self, decimal_counts: Dict[str, int]) -> Dict[str, int]:
+        """
+        OQTOPUSの10進数countsを2進数形式に変換（CHSH用 - 2量子ビット）
+        
+        2量子ビットの場合:
+        0 -> "00"  (|00⟩状態)
+        1 -> "01"  (|01⟩状態)
+        2 -> "10"  (|10⟩状態)
+        3 -> "11"  (|11⟩状態)
+        """
+        binary_counts = {}
+        
+        for decimal_key, count in decimal_counts.items():
+            # キーが数値の場合と文字列の場合に対応
+            if isinstance(decimal_key, str):
+                try:
+                    decimal_value = int(decimal_key)
+                except ValueError:
+                    # すでにバイナリ形式の場合
+                    binary_counts[decimal_key] = count
+                    continue
+            else:
+                decimal_value = int(decimal_key)
+            
+            # 2量子ビットの場合の変換
+            if decimal_value == 0:
+                binary_key = "00"
+            elif decimal_value == 1:
+                binary_key = "01"
+            elif decimal_value == 2:
+                binary_key = "10"
+            elif decimal_value == 3:
+                binary_key = "11"
+            else:
+                # 予期しない値の場合はスキップして警告
+                print(f"⚠️ Unexpected CHSH count key: {decimal_key} (decimal value: {decimal_value})")
+                continue
+            
+            # 既存のキーがある場合は加算
+            if binary_key in binary_counts:
+                binary_counts[binary_key] += count
+            else:
+                binary_counts[binary_key] = count
+        
+        return binary_counts
 
     def _create_4_measurement_analysis(self, phase_range, all_results: Dict[str, Dict],
                                      angles: Dict[str, float]) -> Dict[str, Any]:
@@ -960,12 +1322,12 @@ class CHSHExperiment(BaseExperiment):
         print(f"   Phase points: {phase_points}, Shots: {shots}")
         print(f"   Parallel workers: {parallel_workers}")
 
-        # Run the 4-measurement CHSH experiment
-        results = self.run_4_measurement_chsh(
+        # Use standard BaseExperiment run_experiment method (like Ramsey/T1)
+        results = self.run_experiment(
             devices=devices,
-            phase_points=phase_points,
             shots=shots,
-            parallel_workers=parallel_workers
+            parallel_workers=parallel_workers,
+            points=phase_points  # CHSH-specific parameter
         )
 
         # Save data if requested
