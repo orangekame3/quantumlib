@@ -182,14 +182,33 @@ class BaseExperiment(ABC):
                 return device, None
 
         with ThreadPoolExecutor(max_workers=parallel_workers) as executor:
+            # 順序を保持するために、futureとインデックスのペアを保存
+            future_to_info = {}
             for device in devices:
                 for i, circuit in enumerate(circuits):
-                    submission_tasks.append(executor.submit(submit_single_circuit, circuit, device, i))
+                    future = executor.submit(submit_single_circuit, circuit, device, i)
+                    future_to_info[future] = (device, i)
+                    submission_tasks.append(future)
 
+            # 結果を順序付きで収集
+            device_results = {device: [None] * len(circuits) for device in devices}
             for future in as_completed(submission_tasks):
                 device, job_id = future.result()
+                original_device, original_index = future_to_info[future]
                 if job_id:
-                    all_job_ids[device].append(job_id)
+                    device_results[original_device][original_index] = job_id
+            
+            # 失敗したジョブにはプレースホルダーjob_idを設定
+            for device in devices:
+                final_job_ids = []
+                for i, job_id in enumerate(device_results[device]):
+                    if job_id is not None:
+                        final_job_ids.append(job_id)
+                    else:
+                        # 失敗した場合はプレースホルダーjob_idを生成
+                        failed_job_id = f"failed_{device}_{i}_{int(time.time())}"
+                        final_job_ids.append(failed_job_id)
+                all_job_ids[device] = final_job_ids
 
         for device, jobs in all_job_ids.items():
             print(f"✅ {device}: {len(jobs)} jobs submitted")
@@ -208,7 +227,6 @@ class BaseExperiment(ABC):
         
         for device in devices:
             device_jobs = []
-            device_results = []  # ローカル結果を即座に保存
             
             for i, circuit in enumerate(circuits):
                 result = self.run_circuit_locally(circuit, shots)
@@ -223,6 +241,20 @@ class BaseExperiment(ABC):
                     
                     print(f"Circuit {i+1}/{len(circuits)} → {device}: {job_id} (local)")
                 else:
+                    # 失敗した場合はプレースホルダーjob_idを生成
+                    failed_job_id = f"failed_{device}_{i}_{int(time.time())}"
+                    device_jobs.append(failed_job_id)
+                    
+                    # 失敗結果もローカルに保存
+                    if not hasattr(self, '_local_results'):
+                        self._local_results = {}
+                    self._local_results[failed_job_id] = {
+                        'job_id': failed_job_id,
+                        'success': False,
+                        'counts': {},
+                        'error': 'Local simulation failed'
+                    }
+                    
                     print(f"Circuit {i+1}/{len(circuits)} → {device}: failed")
             
             all_job_ids[device] = device_jobs
@@ -234,6 +266,15 @@ class BaseExperiment(ABC):
         """
         OQTOPUS結果取得（正しいジョブステータス取得対応）
         """
+        # 失敗したジョブのプレースホルダーの場合
+        if job_id.startswith('failed_'):
+            return {
+                'job_id': job_id,
+                'success': False,
+                'counts': {},
+                'error': 'Job submission failed'
+            }
+        
         # ローカル結果が利用可能な場合
         if hasattr(self, '_local_results') and job_id in self._local_results:
             return self._local_results[job_id]
@@ -241,20 +282,108 @@ class BaseExperiment(ABC):
         if not self.oqtopus_available:
             return None
 
-        try:
-            # 詳細ログは有効時のみ出力
-            if verbose_log:
-                print(f"⏳ Waiting for result: {job_id[:8]}...")
-
-            job = self.oqtopus_backend.retrieve_job(job_id)
-            
-            # 正しいジョブステータス取得方法を使用
+        import time
+        max_retries = 5
+        retry_delay = 2  # 初期待機時間（秒）
+        
+        for attempt in range(max_retries):
             try:
-                job_dict = job._job.to_dict()
-                status = job_dict.get('status', 'unknown')
+                if verbose_log and attempt > 0:
+                    print(f"⏳ Retry {attempt}/{max_retries} for {job_id[:8]}...")
+                elif verbose_log:
+                    print(f"⏳ Waiting for result: {job_id[:8]}...")
+
+                job = self.oqtopus_backend.retrieve_job(job_id)
                 
-                # ステータスが終了状態の場合のみ結果取得を試行
-                if status == 'succeeded':
+                # 正しいジョブステータス取得方法を使用
+                try:
+                    job_dict = job._job.to_dict()
+                    status = job_dict.get('status', 'unknown')
+                    
+                    if verbose_log:
+                        print(f"🔍 {job_id[:8]} status: {status}")
+                    
+                    # 成功状態の場合
+                    if status == 'succeeded':
+                        try:
+                            result = job.result()
+                            if result and hasattr(result, 'counts'):
+                                counts = result.counts
+                                return {
+                                    'job_id': job_id,
+                                    'counts': dict(counts),
+                                    'shots': sum(counts.values()),
+                                    'status': status,
+                                    'success': True
+                                }
+                        except Exception as result_error:
+                            if verbose_log:
+                                print(f"⚠️ Result extraction failed for {job_id[:8]}: {result_error}")
+                    
+                    # 明確に失敗した場合は即座に終了
+                    elif status in ['failed', 'cancelled', 'error']:
+                        return {
+                            'job_id': job_id,
+                            'status': status,
+                            'success': False,
+                            'error': f'Job {status}'
+                        }
+                    
+                    # ready状態の場合は結果取得を試行
+                    elif status == 'ready':
+                        try:
+                            result = job.result()
+                            if result and hasattr(result, 'counts'):
+                                counts = result.counts
+                                return {
+                                    'job_id': job_id,
+                                    'counts': dict(counts),
+                                    'shots': sum(counts.values()),
+                                    'status': status,
+                                    'success': True
+                                }
+                        except Exception as ready_error:
+                            if verbose_log:
+                                print(f"⚠️ Ready result extraction failed for {job_id[:8]}: {ready_error}")
+                    
+                    # まだ処理中の状態（submitted, running, queued等）の場合
+                    elif status in ['submitted', 'running', 'queued', 'pending']:
+                        if attempt < max_retries - 1:  # 最後の試行でなければ待機
+                            wait_time = retry_delay * (2 ** attempt)  # 指数バックオフ
+                            if verbose_log:
+                                print(f"⌛ Job {job_id[:8]} still {status}, waiting {wait_time}s...")
+                            time.sleep(wait_time)
+                            continue
+                        else:
+                            # 最後の試行でも処理中の場合
+                            return {
+                                'job_id': job_id,
+                                'status': status,
+                                'success': False,
+                                'error': f'Job timeout in {status} state'
+                            }
+                    
+                    # 不明な状態の場合
+                    else:
+                        if attempt < max_retries - 1:
+                            wait_time = retry_delay
+                            if verbose_log:
+                                print(f"❓ Unknown status {status} for {job_id[:8]}, waiting {wait_time}s...")
+                            time.sleep(wait_time)
+                            continue
+                        else:
+                            return {
+                                'job_id': job_id,
+                                'status': status,
+                                'success': False,
+                                'error': f'Unknown job status: {status}'
+                            }
+                
+                except Exception as status_error:
+                    if verbose_log:
+                        print(f"⚠️ Status check failed for {job_id[:8]} (attempt {attempt + 1}): {status_error}")
+                    
+                    # フォールバック: 旧式メソッドでresult取得を試行
                     try:
                         result = job.result()
                         if result and hasattr(result, 'counts'):
@@ -263,50 +392,32 @@ class BaseExperiment(ABC):
                                 'job_id': job_id,
                                 'counts': dict(counts),
                                 'shots': sum(counts.values()),
-                                'status': status,
                                 'success': True
                             }
-                    except Exception as result_error:
-                        if verbose_log:
-                            print(f"⚠️ Result extraction failed for {job_id[:8]}: {result_error}")
-                
-                # ステータス情報を含む辞書を返す
-                return {
-                    'job_id': job_id,
-                    'status': status,
-                    'success': status == 'succeeded',
-                    'job_info': job_dict
-                }
-                
-            except Exception as status_error:
-                if verbose_log:
-                    print(f"⚠️ Status check failed for {job_id[:8]}: {status_error}")
-                
-                # フォールバック: 旧式メソッドでresult取得を試行
-                try:
-                    result = job.result()
-                    if result and hasattr(result, 'counts'):
-                        counts = result.counts
-                        return {
-                            'job_id': job_id,
-                            'counts': dict(counts),
-                            'shots': sum(counts.values()),
-                            'success': True
-                        }
-                except:
-                    pass
+                    except:
+                        pass
                     
-                # 完全失敗の場合
-                return {
-                    'job_id': job_id,
-                    'status': 'unknown',
-                    'success': False
-                }
+                    # 最後の試行でなければ待機してリトライ
+                    if attempt < max_retries - 1:
+                        time.sleep(retry_delay)
+                        continue
 
-        except Exception as e:
-            if verbose_log:
-                print(f"❌ Result collection failed for {job_id}: {e}")
-            return None
+            except Exception as e:
+                if verbose_log:
+                    print(f"❌ Result collection failed for {job_id[:8]} (attempt {attempt + 1}): {e}")
+                
+                # 最後の試行でなければ待機してリトライ
+                if attempt < max_retries - 1:
+                    time.sleep(retry_delay)
+                    continue
+        
+        # 全ての試行が失敗した場合
+        return {
+            'job_id': job_id,
+            'status': 'timeout',
+            'success': False,
+            'error': f'Failed after {max_retries} attempts'
+        }
 
     def collect_results_parallel(self, job_ids: Dict[str, List[str]],
                                 wait_minutes: int = 30) -> Dict[str, List[Dict[str, Any]]]:
@@ -336,16 +447,19 @@ class BaseExperiment(ABC):
 
         def collect_from_device(device_data):
             device, device_job_ids = device_data
-            device_results = []
+            device_results = [None] * len(device_job_ids)
 
-            for job_id in device_job_ids:
-                result = self.get_oqtopus_result(job_id, wait_minutes)
-                if result:
-                    device_results.append(result)
+            # 順序を保持するために、インデックスと一緒に結果を収集
+            for i, job_id in enumerate(device_job_ids):
+                result = self.get_oqtopus_result(job_id, wait_minutes, verbose_log=True)
+                if result and result.get('success', False):
+                    device_results[i] = result
                     print(f"✅ {device}: {job_id[:8]}... collected")
                 else:
-                    print(f"❌ {device}: {job_id[:8]}... failed")
+                    status = result.get('status', 'unknown') if result else 'no_result'
+                    print(f"❌ {device}: {job_id[:8]}... failed (status: {status})")
 
+            # 順序を保持するため、Noneもそのまま返す
             return device, device_results
 
         all_results = {}
