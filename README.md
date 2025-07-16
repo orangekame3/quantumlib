@@ -12,15 +12,15 @@ pip install git+https://github.com/orangekame3/quantumlib.git
 
 ```bash
 # CHSH Bell test
-quantumlib-chsh run --devices qulacs --shots 1000
+quantumlib-chsh run --devices qulacs --shots 1000 --points 20
 
-# Rabi oscillations
-quantumlib-rabi run --devices qulacs --shots 1000
+# Rabi oscillations  
+quantumlib-rabi run --devices qulacs --shots 1000 --points 40 --backend oqtopus --parallel 20
 
 # Other experiments
-quantumlib-ramsey run --devices qulacs --shots 1000
-quantumlib-t1 run --devices qulacs --shots 1000
-quantumlib-t2-echo run --devices qulacs --shots 1000
+quantumlib-ramsey run --devices qulacs --shots 1000 --points 30
+quantumlib-t1 run --devices qulacs --shots 2000 --points 25 --backend oqtopus --parallel 8
+quantumlib-t2-echo run --devices qulacs --shots 1000 --points 20 --backend oqtopus
 ```
 
 ## Usage
@@ -41,7 +41,11 @@ All commands support these options:
 ### CHSH Bell Inequality Test
 
 ```bash
+# Basic usage
 quantumlib-chsh run --devices qulacs --shots 1000 --points 20
+
+# High-resolution scan with parallel execution
+quantumlib-chsh run --devices qulacs --shots 5000 --points 50 --backend oqtopus --parallel 10
 ```
 
 Options:
@@ -50,7 +54,11 @@ Options:
 ### Rabi Oscillation Experiment
 
 ```bash
+# Basic usage
 quantumlib-rabi run --devices qulacs --shots 1000 --points 20 --max-amplitude 6.28
+
+# High-resolution scan with more parallel workers
+quantumlib-rabi run --devices qulacs --shots 1000 --points 40 --backend oqtopus --parallel 20
 ```
 
 Options:
@@ -61,13 +69,13 @@ Options:
 
 ```bash
 # Ramsey interference
-quantumlib-ramsey run --devices qulacs --shots 1000
+quantumlib-ramsey run --devices qulacs --shots 1000 --points 30
 
-# T1 relaxation time
-quantumlib-t1 run --devices qulacs --shots 1000
+# T1 relaxation time measurement
+quantumlib-t1 run --devices qulacs --shots 2000 --points 25 --backend oqtopus --parallel 8
 
-# T2 coherence time
-quantumlib-t2-echo run --devices qulacs --shots 1000
+# T2 coherence time with echo
+quantumlib-t2-echo run --devices qulacs --shots 1000 --points 20 --backend oqtopus
 ```
 
 ### Help
@@ -150,6 +158,8 @@ results = experiment.run_experiment(devices=['qulacs'])
 
 ## Development
 
+### Setup
+
 ```bash
 git clone https://github.com/orangekame3/quantumlib.git
 cd quantumlib
@@ -157,9 +167,45 @@ uv sync
 uv pip install -e .
 ```
 
-Run tests:
+### Development Commands
+
 ```bash
+# Run experiments using workspace scripts
+uv run workspace/scripts/chsh.py run --devices qulacs --shots 1000 --points 20
+uv run workspace/scripts/rabi.py run --devices qulacs --shots 1000 --points 40 --backend oqtopus --parallel 20
+uv run workspace/scripts/ramsey.py run --devices qulacs --shots 1000 --points 30
+uv run workspace/scripts/t1.py run --devices qulacs --shots 2000 --points 25 --backend oqtopus --parallel 8
+uv run workspace/scripts/t2_echo.py run --devices qulacs --shots 1000 --points 20
+
+# Code quality checks
+uv run ruff check src/
+uv run black src/
+uv run mypy src/
+
+# Run tests
 uv run pytest
+uv run pytest tests/test_chsh.py  # specific test
+uv run pytest -v                  # verbose output
+
+# Build package
+uv build
+```
+
+### Project Structure
+
+```
+quantumlib/
+├── src/quantumlib/          # Main library code
+│   ├── cli/                 # CLI framework
+│   ├── experiments/         # Experiment implementations
+│   ├── circuit/             # Circuit factories
+│   ├── backend/             # Device backends
+│   └── core/                # Base classes
+├── workspace/               # Development workspace
+│   ├── scripts/             # CLI scripts for development
+│   ├── configs/             # Configuration files
+│   └── experiments/         # Experiment results
+└── tests/                   # Test suite
 ```
 
 ## Requirements

@@ -29,7 +29,14 @@ class RabiExperiment(BaseExperiment):
     """
 
     def __init__(self, experiment_name: str = None, **kwargs):
-        super().__init__(experiment_name, **kwargs)
+        # Rabi実験固有のパラメータを抽出（BaseExperimentには渡さない）
+        rabi_specific_params = {
+            'amplitude_points', 'max_amplitude', 'drive_time', 'drive_frequency', 'points'
+        }
+        
+        # BaseExperimentに渡すkwargsをフィルタリング
+        base_kwargs = {k: v for k, v in kwargs.items() if k not in rabi_specific_params}
+        super().__init__(experiment_name, **base_kwargs)
 
         # Rabi実験固有の設定
         self.expected_pi_pulse = np.pi  # 期待されるπパルス角度

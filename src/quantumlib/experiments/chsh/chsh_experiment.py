@@ -25,9 +25,14 @@ class CHSHExperiment(BaseExperiment):
     """
 
     def __init__(self, experiment_name: str = None, **kwargs):
-        # CHSH固有のpointsをkwargsから取り除く
-        kwargs.pop('points', None)
-        super().__init__(experiment_name, **kwargs)
+        # CHSH実験固有のパラメータを抽出（BaseExperimentには渡さない）
+        chsh_specific_params = {
+            'phase_points', 'theta_a', 'theta_b', 'points'
+        }
+        
+        # BaseExperimentに渡すkwargsをフィルタリング
+        base_kwargs = {k: v for k, v in kwargs.items() if k not in chsh_specific_params}
+        super().__init__(experiment_name, **base_kwargs)
 
         # CHSH実験固有の設定
         self.classical_bound = 2.0
