@@ -1,0 +1,15 @@
+include README.md
+include LICENSE
+include pyproject.toml
+recursive-include src/quantumlib *.py
+recursive-include src/quantumlib *.typed
+recursive-include workspace/configs *.json
+recursive-include workspace/scripts *.py
+include workspace/experiments/research_cli.py
+include workspace/experiments/chsh_research_template.py
+recursive-exclude tests *
+recursive-exclude notebooks *
+recursive-exclude workspace/experiments/results *
+exclude .gitignore
+exclude uv.lock
+recursive-exclude .claude *

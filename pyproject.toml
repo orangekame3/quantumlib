@@ -1,9 +1,26 @@
 [project]
 name = "quantumlib"
 version = "0.1.0"
-description = "A quantum computing library optimized for Jupyter notebook development"
+description = "A modular quantum computing framework optimized for research and experimentation"
 readme = "README.md"
 requires-python = ">=3.12"
+license = {text = "MIT"}
+authors = [
+    {name = "Your Name", email = "your.email@example.com"},
+]
+maintainers = [
+    {name = "Your Name", email = "your.email@example.com"},
+]
+keywords = ["quantum", "computing", "research", "experiment", "qiskit", "cirq"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Physics",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
 dependencies = [
     "jupyter>=1.1.1",
     "jupyterlab>=4.0.0",
@@ -37,6 +54,19 @@ dependencies = [
     "quri-parts-oqtopus>=1.0.3",
     "tranqu",
 ]
+
+[project.urls]
+Homepage = "https://github.com/orangekame3/quantumlib"
+Repository = "https://github.com/orangekame3/quantumlib"
+Documentation = "https://github.com/orangekame3/quantumlib#readme"
+Issues = "https://github.com/orangekame3/quantumlib/issues"
+
+[project.scripts]
+quantumlib-chsh = "quantumlib.cli.chsh:main"
+quantumlib-rabi = "quantumlib.cli.rabi:main"
+quantumlib-ramsey = "quantumlib.cli.ramsey:main"
+quantumlib-t1 = "quantumlib.cli.t1:main"
+quantumlib-t2-echo = "quantumlib.cli.t2_echo:main"
 
 [dependency-groups]
 dev = [

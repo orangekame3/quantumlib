@@ -1,285 +1,173 @@
 # QuantumLib
 
-A modular quantum computing framework optimized for research and experimentation, featuring standardized CLI tools, modular circuit design, and comprehensive experiment management.
+A modular quantum computing framework for research and experimentation.
 
-## 🚀 Features
-
-- **Modular Experiment Framework**: Standardized base classes for quantum experiments
-- **Unified CLI Interface**: Consistent command-line tools with shared options
-- **Multi-Backend Support**: Local simulators (Qulacs) and cloud quantum devices (OQTOPUS)
-- **Rich Visualization**: Automatic plot generation and interactive displays
-- **Data Management**: Structured result storage with comprehensive metadata
-- **Parallel Execution**: Efficient multi-threaded circuit execution
-- **Jupyter Integration**: Seamless notebook development experience
-
-## 📋 Quick Start
-
-### Installation
+## Installation
 
 ```bash
-git clone https://github.com/your-username/quantumlib.git
-cd quantumlib
-uv sync
-uv pip install -e .
+pip install git+https://github.com/orangekame3/quantumlib.git
 ```
 
-### Run Your First Experiment
+## Quick Start
 
 ```bash
-# CHSH Bell Inequality Test
-uv run workspace/scripts/chsh.py run --devices qulacs --shots 1000 --points 20
+# CHSH Bell test
+quantumlib-chsh run --devices qulacs --shots 1000
 
-# Rabi Oscillation Experiment
-uv run workspace/scripts/rabi.py run --devices qulacs --shots 1000 --points 20
+# Rabi oscillations
+quantumlib-rabi run --devices qulacs --shots 1000
+
+# Other experiments
+quantumlib-ramsey run --devices qulacs --shots 1000
+quantumlib-t1 run --devices qulacs --shots 1000
+quantumlib-t2-echo run --devices qulacs --shots 1000
 ```
 
-## 🛠️ Architecture
+## Usage
 
-### Modular Design
+### Common Options
 
-```
-quantumlib/
-├── cli/              # Common CLI framework
-├── circuit/          # Experiment-specific circuit factories
-├── experiments/      # Experiment implementations
-├── backend/          # Device backend abstractions
-└── core/            # Base classes and utilities
-```
+All commands support these options:
 
-### Experiment Framework
+- `--devices`: Quantum devices to use (default: qulacs)
+- `--shots`: Number of measurement shots (default: 1000)
+- `--backend`: Experiment backend (default: local_simulator)
+- `--parallel`: Number of parallel threads (default: 4)
+- `--no-save`: Skip saving data
+- `--no-plot`: Skip generating plots
+- `--show-plot`: Display plots interactively
+- `--verbose`: Verbose output
 
-All experiments inherit from `BaseExperiment` and follow a standardized 3-step pattern:
-
-1. **Circuit Generation**: Create quantum circuits for the experiment
-2. **Parallel Execution**: Run circuits across devices with progress tracking
-3. **Analysis & Storage**: Process results and save comprehensive data
-
-### CLI Framework
-
-CLIs inherit from `BaseExperimentCLI` providing:
-
-- Shared common options (devices, shots, backend, etc.)
-- Rich progress indicators and formatted output
-- Automatic data saving and visualization
-- Consistent help documentation
-
-## 🔬 Supported Experiments
-
-### CHSH Bell Inequality Verification
-
-Tests quantum non-locality through Bell inequality violations.
+### CHSH Bell Inequality Test
 
 ```bash
-uv run workspace/scripts/chsh.py run \
-  --devices qulacs \
-  --shots 1000 \
-  --points 20 \
-  --backend local_simulator
+quantumlib-chsh run --devices qulacs --shots 1000 --points 20
 ```
 
-**Options:**
-
+Options:
 - `--points`: Number of phase points to scan (default: 20)
 
-**Output:**
-
-- Bell parameter |S| values vs phase
-- Violation count and quantum advantage analysis
-- Publication-ready plots
-
-### Rabi Oscillation Analysis
-
-Characterizes qubit drive amplitude vs excitation probability.
+### Rabi Oscillation Experiment
 
 ```bash
-uv run workspace/scripts/rabi.py run \
-  --devices qulacs \
-  --shots 1000 \
-  --points 20 \
-  --max-amplitude 6.28
+quantumlib-rabi run --devices qulacs --shots 1000 --points 20 --max-amplitude 6.28
 ```
 
-**Options:**
-
+Options:
 - `--points`: Number of amplitude points (default: 20)
 - `--max-amplitude`: Maximum drive amplitude in radians (default: 2π)
 
-**Output:**
+### Other Experiments
 
-- Excitation probability vs drive amplitude
-- Rabi frequency estimation
-- π-pulse amplitude identification
+```bash
+# Ramsey interference
+quantumlib-ramsey run --devices qulacs --shots 1000
 
-## 🎯 Common CLI Options
+# T1 relaxation time
+quantumlib-t1 run --devices qulacs --shots 1000
 
-All experiment CLIs share these options:
-
-| Option              | Type | Default           | Description                 |
-| ------------------- | ---- | ----------------- | --------------------------- |
-| `--devices`         | List | `[qulacs]`        | Quantum devices to use      |
-| `--shots`           | int  | `1000`            | Number of measurement shots |
-| `--backend`         | str  | `local_simulator` | Experiment backend          |
-| `--parallel`        | int  | `4`               | Number of parallel threads  |
-| `--experiment-name` | str  | `None`            | Custom experiment name      |
-| `--no-save`         | flag | `False`           | Skip saving data            |
-| `--no-plot`         | flag | `False`           | Skip generating plots       |
-| `--show-plot`       | flag | `False`           | Display plots interactively |
-| `--verbose`         | flag | `False`           | Verbose output              |
-
-## 📊 Data Management
-
-### Automatic Storage
-
-Each experiment run creates structured output:
-
-```shell
-.results/experiment_name_timestamp/
-├── data/
-│   ├── experiment_results.json      # Raw measurement data
-│   ├── device_performance.json      # Device comparison metrics
-│   ├── plotting_data.json          # Processed data for plots
-│   └── experiment_summary.json     # High-level results
-└── plots/
-    └── experiment_plot.png          # Publication-ready figures
+# T2 coherence time
+quantumlib-t2-echo run --devices qulacs --shots 1000
 ```
 
-### Metadata Tracking
+### Help
 
-Every experiment includes comprehensive metadata:
+Get detailed help for any command:
 
-- Execution timestamp and unique ID
-- Device configuration and backend used
-- Experiment parameters and settings
-- Performance metrics and execution time
-- Analysis results and key findings
+```bash
+quantumlib-chsh --help
+quantumlib-rabi --help
+```
 
-## 🔧 Development
+## Library Usage
 
-### Adding New Experiments
+You can also use QuantumLib directly in Python code:
 
-1. **Create Experiment Class**:
+### Basic Example
+
+```python
+from quantumlib.experiments.chsh.chsh_experiment import CHSHExperiment
+from quantumlib.experiments.rabi.rabi_experiment import RabiExperiment
+
+# CHSH Bell inequality test
+chsh = CHSHExperiment()
+results = chsh.run_experiment(
+    devices=['qulacs'],
+    shots=1000,
+    phase_points=20
+)
+
+# Rabi oscillation experiment
+rabi = RabiExperiment()
+results = rabi.run_experiment(
+    devices=['qulacs'],
+    shots=1000,
+    amplitude_points=20,
+    max_amplitude=6.28
+)
+```
+
+### Circuit Generation
+
+```python
+from quantumlib.circuit.chsh_circuits import create_chsh_circuit
+from quantumlib.circuit.rabi_circuits import create_rabi_circuit
+
+# Generate CHSH circuit
+circuit = create_chsh_circuit(theta_a=0, theta_b=0.785, phi=1.57)
+
+# Generate Rabi circuit
+circuit = create_rabi_circuit(amplitude=3.14)
+```
+
+### Custom Experiments
 
 ```python
 from quantumlib.core.base_experiment import BaseExperiment
 
 class MyExperiment(BaseExperiment):
     def create_circuits(self, **params):
-        # Generate quantum circuits
-        pass
+        # Your circuit generation logic
+        return circuits
 
     def analyze_results(self, results):
-        # Process measurement data
-        pass
+        # Your analysis logic
+        return analysis_data
+
+# Run your custom experiment
+experiment = MyExperiment()
+results = experiment.run_experiment(devices=['qulacs'])
 ```
 
-2. **Create CLI Interface**:
+## Features
 
-```python
-from quantumlib.cli.base_cli import BaseExperimentCLI
+- CHSH Bell inequality experiments
+- Rabi oscillation measurements
+- Ramsey interference experiments
+- T1/T2 coherence time measurements
+- Multiple backend support (Qulacs, OQTOPUS)
+- Parallel execution and data visualization
 
-class MyExperimentCLI(BaseExperimentCLI):
-    def get_experiment_class(self):
-        return MyExperiment
-
-    def run(self,
-        devices: CommonDevicesOption = [DeviceType.qulacs],
-        shots: CommonShotsOption = 1000,
-        # ... other common options
-        my_param: Annotated[float, typer.Option()] = 1.0
-    ):
-        self._execute_experiment(
-            devices=[d.value for d in devices],
-            shots=shots,
-            my_param=my_param,
-            # ... other parameters
-        )
-```
-
-### Circuit Modularity
-
-Circuits are organized by experiment type:
-
-```python
-# quantumlib/circuit/my_circuits.py
-def create_my_circuit(param1, param2):
-    # Circuit creation logic
-    return circuit
-```
-
-### Testing
+## Development
 
 ```bash
-# Run specific experiment tests
-uv run pytest tests/test_chsh.py
-uv run pytest tests/test_rabi.py
+git clone https://github.com/orangekame3/quantumlib.git
+cd quantumlib
+uv sync
+uv pip install -e .
+```
 
-# Full test suite
+Run tests:
+```bash
 uv run pytest
 ```
 
-## 🚀 Advanced Usage
+## Requirements
 
-### Custom Backend Configuration
+- Python 3.12+
+- Quantum simulators: Qulacs, Qiskit, Cirq
+- Scientific computing: NumPy, SciPy, Matplotlib
 
-```python
-from quantumlib.backend.oqtopus import OQTOPUSBackend
+## License
 
-# Configure OQTOPUS for real device execution
-backend = OQTOPUSBackend(
-    device_name="SC",
-    optimization_level=2
-)
-```
-
-### Batch Experiments
-
-```python
-from quantumlib.experiments.chsh.chsh_experiment import CHSHExperiment
-
-# Run parameter sweep
-experiment = CHSHExperiment()
-for phase_points in [10, 20, 50]:
-    results = experiment.run_full_experiment(
-        devices=['qulacs'],
-        phase_points=phase_points
-    )
-```
-
-### Jupyter Integration
-
-```python
-# In Jupyter notebook
-from quantumlib.experiments.rabi.rabi_experiment import RabiExperiment
-
-experiment = RabiExperiment()
-results = experiment.run_full_experiment(devices=['qulacs'])
-experiment.create_rich_visualization(results)
-```
-
-## 📈 Performance Features
-
-- **Parallel Circuit Execution**: Automatic multi-threading for circuit batches
-- **Progress Tracking**: Real-time progress bars with ETA
-- **Memory Optimization**: Efficient handling of large measurement datasets
-- **Caching**: Intelligent caching of expensive computations
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch: `git checkout -b feature/my-feature`
-3. Make your changes following the modular architecture
-4. Add tests for new functionality
-5. Submit a pull request
-
-## 📄 License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
-
-## 🙏 Acknowledgments
-
-Built with:
-
-- [Qulacs](https://github.com/qulacs/qulacs) for quantum simulation
-- [OQTOPUS](https://github.com/oqtopus-team/oqtopus) for cloud quantum access
-- [Typer](https://typer.tiangolo.com/) for CLI framework
-- [Rich](https://rich.readthedocs.io/) for beautiful terminal output
+MIT License
