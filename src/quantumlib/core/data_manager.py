@@ -109,7 +109,7 @@ class SimpleDataManager:
     def get_data_directory(self) -> str:
         """
         Get the data directory path
-        
+
         Returns:
             Data directory path
         """

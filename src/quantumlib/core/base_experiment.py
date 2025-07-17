@@ -7,7 +7,7 @@ Base class for all quantum experiment classes
 import time
 from abc import ABC, abstractmethod
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import Any, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from quri_parts_oqtopus.backend import OqtopusSamplingBackend
@@ -57,6 +57,7 @@ class BaseExperiment(ABC):
             self.oqtopus_available = OQTOPUS_AVAILABLE
             if OQTOPUS_AVAILABLE:
                 from quri_parts_oqtopus.backend import OqtopusSamplingBackend
+
                 self.oqtopus_backend = OqtopusSamplingBackend()
 
         # Local simulator configuration

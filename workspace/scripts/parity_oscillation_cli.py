@@ -6,7 +6,6 @@ Study GHZ state decoherence through parity oscillation measurements
 
 from typing import Annotated, Any
 
-import numpy as np
 import typer
 
 from quantumlib.cli.base_cli import (
@@ -34,7 +33,7 @@ class ParityOscillationExperimentCLI(BaseExperimentCLI):
     def __init__(self):
         super().__init__(
             experiment_name="ParityOscillation",
-            help_text="QuantumLib Parity Oscillation (GHZ Decoherence) Experiment"
+            help_text="QuantumLib Parity Oscillation (GHZ Decoherence) Experiment",
         )
 
     def get_experiment_class(self):
@@ -58,11 +57,11 @@ class ParityOscillationExperimentCLI(BaseExperimentCLI):
         num_qubits_list = kwargs.get("num_qubits_list", [1, 2, 3, 4, 5])
         delays_us = kwargs.get("delays_us", [0, 1, 2, 4, 8, 16])
         phase_points = kwargs.get("phase_points", None)
-        
+
         max_qubits = max(num_qubits_list)
         actual_phase_points = phase_points or (4 * max_qubits + 1)
         total_circuits = len(num_qubits_list) * len(delays_us) * actual_phase_points
-        
+
         return (
             f"QuantumLib Parity Oscillation Experiment\\n"
             f"Devices: {', '.join(devices)}\\n"
@@ -87,7 +86,7 @@ class ParityOscillationExperimentCLI(BaseExperimentCLI):
         circuits = experiment_instance.create_circuits(
             num_qubits_list=num_qubits_list,
             delays_us=delays_us,
-            phase_points=phase_points
+            phase_points=phase_points,
         )
 
         self.console.print(f"   Qubit counts: {num_qubits_list}")
@@ -97,7 +96,9 @@ class ParityOscillationExperimentCLI(BaseExperimentCLI):
         else:
             max_qubits = max(num_qubits_list)
             auto_points = 4 * max_qubits + 1
-            self.console.print(f"   Phase points: {auto_points} (4N+1 for max N={max_qubits})")
+            self.console.print(
+                f"   Phase points: {auto_points} (4N+1 for max N={max_qubits})"
+            )
 
         return circuits, {
             "num_qubits_list": num_qubits_list,
@@ -149,16 +150,14 @@ class ParityOscillationExperimentCLI(BaseExperimentCLI):
         show_plot: CommonShowPlotOption = False,
         verbose: CommonVerboseOption = False,
         num_qubits: Annotated[
-            list[int], 
-            typer.Option(help="List of qubit counts to test")
+            list[int], typer.Option(help="List of qubit counts to test")
         ] = [1, 2, 3, 4, 5],
         delays: Annotated[
-            list[float], 
-            typer.Option(help="List of delay times in microseconds")
+            list[float], typer.Option(help="List of delay times in microseconds")
         ] = [0, 1, 2, 4, 8, 16],
         phase_points: Annotated[
-            int | None, 
-            typer.Option(help="Number of phase points (default: 4N+1 for each N)")
+            int | None,
+            typer.Option(help="Number of phase points (default: 4N+1 for each N)"),
         ] = None,
     ):
         """
