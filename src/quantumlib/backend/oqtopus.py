@@ -20,7 +20,6 @@ try:
     OQTOPUS_AVAILABLE = True
 except ImportError:
     OQTOPUS_AVAILABLE = False
-    OqtopusSamplingBackend = None
 
 
 class QuantumExperimentSimple:
@@ -35,8 +34,8 @@ class QuantumExperimentSimple:
 
     def __init__(
         self,
-        experiment_name: str = None,
-        oqtopus_backend: Any | None = None,
+        experiment_name: str | None = None,
+        oqtopus_backend: OqtopusSamplingBackend | None = None,
     ):
         """
         Initialize quantum experiment
@@ -56,8 +55,6 @@ class QuantumExperimentSimple:
             self.oqtopus_available = OQTOPUS_AVAILABLE
             if OQTOPUS_AVAILABLE:
                 self.oqtopus_backend = OqtopusSamplingBackend()
-            else:
-                self.oqtopus_backend = None
 
         # OQTOPUS設定（ユーザーが直接編集可能）
         self.anemone_basis_gates = ["sx", "x", "rz", "cx"]
@@ -328,7 +325,7 @@ class QuantumExperimentSimple:
     def save_job_ids(
         self,
         job_ids: dict[str, list[str]],
-        metadata: dict[str, Any] = None,
+        metadata: dict[str, Any] | None = None,
         filename: str = "job_ids",
     ) -> str:
         """ジョブID保存"""
@@ -347,7 +344,7 @@ class QuantumExperimentSimple:
     def save_results(
         self,
         results: dict[str, Any],
-        metadata: dict[str, Any] = None,
+        metadata: dict[str, Any] | None = None,
         filename: str = "results",
     ) -> str:
         """実験結果保存"""
@@ -370,7 +367,7 @@ def run_chsh_comparison_simple(
     phase_points: int = 20,
     shots: int = 1024,
     submit_interval: float = 2.0,
-    experiment_name: str = None,
+    experiment_name: str | None = None,
 ) -> dict[str, Any]:
     """
     CHSH比較実験を簡単実行（シンプル版）

@@ -19,7 +19,6 @@ try:
     OQTOPUS_AVAILABLE = True
 except ImportError:
     OQTOPUS_AVAILABLE = False
-    OqtopusSamplingBackend = None
 
 
 class BaseExperiment(ABC):
@@ -32,8 +31,8 @@ class BaseExperiment(ABC):
 
     def __init__(
         self,
-        experiment_name: str = None,
-        oqtopus_backend: Any | None = None,
+        experiment_name: str | None = None,
+        oqtopus_backend: OqtopusSamplingBackend | None = None,
     ):
         """
         Initialize base experiment
@@ -55,8 +54,6 @@ class BaseExperiment(ABC):
             self.oqtopus_available = OQTOPUS_AVAILABLE
             if OQTOPUS_AVAILABLE:
                 self.oqtopus_backend = OqtopusSamplingBackend()
-            else:
-                self.oqtopus_backend = None
 
         # ローカルシミュレーター設定
         self.local_simulator = None

@@ -12,8 +12,6 @@ try:
     QISKIT_AVAILABLE = True
 except ImportError:
     QISKIT_AVAILABLE = False
-    QuantumCircuit = None
-    transpile = None
 
 
 class CommonCircuitUtils:
