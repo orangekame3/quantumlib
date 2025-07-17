@@ -49,6 +49,7 @@ quantumlib-chsh run --devices qulacs --shots 5000 --points 50 --backend oqtopus 
 ```
 
 Options:
+
 - `--points`: Number of phase points to scan (default: 20)
 
 ### Rabi Oscillation Experiment
@@ -62,6 +63,7 @@ quantumlib-rabi run --devices qulacs --shots 1000 --points 40 --backend oqtopus 
 ```
 
 Options:
+
 - `--points`: Number of amplitude points (default: 20)
 - `--max-amplitude`: Maximum drive amplitude in radians (default: 2π)
 
@@ -245,7 +247,7 @@ uv build
 
 ### Project Structure
 
-```
+```shell
 quantumlib/
 ├── src/quantumlib/          # Main library code
 │   ├── cli/                 # CLI framework

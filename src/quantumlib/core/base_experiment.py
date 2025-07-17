@@ -33,7 +33,7 @@ class BaseExperiment(ABC):
     def __init__(
         self,
         experiment_name: str = None,
-        oqtopus_backend: OqtopusSamplingBackend | None = None,
+        oqtopus_backend: Any | None = None,
     ):
         """
         Initialize base experiment
