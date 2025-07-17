@@ -183,6 +183,10 @@ class CHSHExperimentCLI(BaseExperimentCLI):
             points=points,  # CHSH specific option
         )
 
+    def main(self):
+        """CLI callback - Override in subclass"""
+        pass
+
 
 # CLI instance creation and execution
 def main():

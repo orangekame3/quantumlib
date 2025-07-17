@@ -156,6 +156,10 @@ class T1ExperimentCLI(BaseExperimentCLI):
             max_delay=max_delay,  # T1 specific option
         )
 
+    def main(self):
+        """CLI callback - Override in subclass"""
+        pass
+
 
 # CLI instance creation and execution
 def main():

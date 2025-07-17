@@ -184,6 +184,10 @@ class T2EchoExperimentCLI(BaseExperimentCLI):
             enable_fitting=enable_fitting,  # Fitting enable option
         )
 
+    def main(self):
+        """CLI callback - Override in subclass"""
+        pass
+
 
 # CLI instance creation and execution
 def main():
