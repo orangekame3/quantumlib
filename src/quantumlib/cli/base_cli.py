@@ -24,6 +24,7 @@ from rich.progress import (
 class DeviceType(str, Enum):
     qulacs = "qulacs"
     anemone = "anemone"
+    Kawasaki = "Kawasaki"
 
 
 class ExperimentBackend(str, Enum):
