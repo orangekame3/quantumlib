@@ -18,6 +18,12 @@ from .common_circuits import (
     get_circuit_info,
     optimize_circuit,
 )
+from .parity_circuits import (
+    ParityCircuitFactory,
+    create_coherence_decay_circuits,
+    create_ghz_with_delay_rotation,
+    create_parity_scan_circuits,
+)
 from .rabi_circuits import (
     RabiCircuitFactory,
     create_rabi_circuit,
@@ -33,6 +39,11 @@ __all__ = [
     "create_chsh_circuit",
     "create_bell_state",
     "create_custom_bell_measurement",
+    # Parity oscillation-related
+    "ParityCircuitFactory",
+    "create_ghz_with_delay_rotation",
+    "create_parity_scan_circuits",
+    "create_coherence_decay_circuits",
     # Rabi-related
     "RabiCircuitFactory",
     "create_rabi_circuit",

@@ -17,6 +17,9 @@ quantumlib-chsh run --devices qulacs --shots 1000 --points 20
 # Rabi oscillations
 quantumlib-rabi run --devices qulacs --shots 1000 --points 40 --backend oqtopus --parallel 20
 
+# Parity oscillations (GHZ decoherence)
+quantumlib-parity-oscillation run --num-qubits 1 2 3 4 --delays 0 1 2 4 --shots 1000
+
 # Other experiments
 quantumlib-ramsey run --devices qulacs --shots 1000 --points 30
 quantumlib-t1 run --devices qulacs --shots 2000 --points 25 --backend oqtopus --parallel 8
@@ -67,6 +70,27 @@ Options:
 - `--points`: Number of amplitude points (default: 20)
 - `--max-amplitude`: Maximum drive amplitude in radians (default: 2π)
 
+### Parity Oscillation Experiment (GHZ Decoherence)
+
+Study the decoherence of GHZ states through parity oscillation measurements, based on [Ozaeta & McMahon (2019)](https://doi.org/10.1088/2058-9565/ab13e5).
+
+```bash
+# Basic usage - test 1-4 qubit GHZ states
+quantumlib-parity-oscillation run --num-qubits 1 2 3 4 --delays 0 1 2 4 --shots 1000
+
+# High-resolution decoherence study
+quantumlib-parity-oscillation run --num-qubits 1 2 3 4 5 --delays 0 1 2 4 8 16 --shots 2000 --show-plot
+
+# Quick test with custom phase points
+quantumlib-parity-oscillation run --num-qubits 2 3 --delays 0 2 --phase-points 9 --shots 512
+```
+
+Options:
+
+- `--num-qubits`: List of qubit counts to test (default: [1,2,3,4,5])
+- `--delays`: List of delay times in microseconds (default: [0,1,2,4,8,16])
+- `--phase-points`: Number of phase points (default: 4N+1 for each N)
+
 ### Other Experiments
 
 ```bash
@@ -87,6 +111,7 @@ Get detailed help for any command:
 ```bash
 quantumlib-chsh --help
 quantumlib-rabi --help
+quantumlib-parity-oscillation --help
 ```
 
 ## Library Usage
@@ -98,6 +123,7 @@ You can also use QuantumLib directly in Python code:
 ```python
 from quantumlib.experiments.chsh.chsh_experiment import CHSHExperiment
 from quantumlib.experiments.rabi.rabi_experiment import RabiExperiment
+from quantumlib.experiments.parity_oscillation import ParityOscillationExperiment
 
 # CHSH Bell inequality test
 chsh = CHSHExperiment()
@@ -115,6 +141,16 @@ results = rabi.run_experiment(
     amplitude_points=20,
     max_amplitude=6.28
 )
+
+# Parity oscillation (GHZ decoherence) experiment
+parity = ParityOscillationExperiment()
+results = parity.run_experiment(
+    devices=['qulacs'],
+    shots=1000,
+    num_qubits_list=[1, 2, 3, 4],
+    delays_us=[0, 1, 2, 4, 8],
+    phase_points=21
+)
 ```
 
 ### Circuit Generation
@@ -122,12 +158,16 @@ results = rabi.run_experiment(
 ```python
 from quantumlib.circuit.chsh_circuits import create_chsh_circuit
 from quantumlib.circuit.rabi_circuits import create_rabi_circuit
+from quantumlib.circuit.parity_circuits import create_ghz_with_delay_rotation
 
 # Generate CHSH circuit
 circuit = create_chsh_circuit(theta_a=0, theta_b=0.785, phi=1.57)
 
 # Generate Rabi circuit
 circuit = create_rabi_circuit(amplitude=3.14)
+
+# Generate GHZ circuit with delay and parity rotation
+circuit = create_ghz_with_delay_rotation(num_qubits=3, delay_us=2.0, phi=1.57)
 ```
 
 ### Custom Experiments
@@ -205,6 +245,7 @@ sequenceDiagram
 
 - CHSH Bell inequality experiments
 - Rabi oscillation measurements
+- Parity oscillation experiments (GHZ decoherence studies)
 - Ramsey interference experiments
 - T1/T2 coherence time measurements
 - Multiple backend support (Qulacs, OQTOPUS)
@@ -227,6 +268,7 @@ uv pip install -e .
 # Run experiments using workspace scripts
 uv run workspace/scripts/chsh.py run --devices qulacs --shots 1000 --points 20
 uv run workspace/scripts/rabi.py run --devices qulacs --shots 1000 --points 40 --backend oqtopus --parallel 20
+uv run workspace/scripts/parity_oscillation_cli.py run --num-qubits 1 2 3 4 --delays 0 1 2 4 --shots 1000
 uv run workspace/scripts/ramsey.py run --devices qulacs --shots 1000 --points 30
 uv run workspace/scripts/t1.py run --devices qulacs --shots 2000 --points 25 --backend oqtopus --parallel 8
 uv run workspace/scripts/t2_echo.py run --devices qulacs --shots 1000 --points 20
