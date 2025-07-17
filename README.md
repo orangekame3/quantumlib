@@ -151,22 +151,6 @@ results = experiment.run_experiment(devices=['qulacs'])
 
 This project features a parallel job submission and aggregation function, the architecture of which is described below.
 
-```mermaid
-graph TD
-    A[CLI Interface Typer] --> B{Experiment Type};
-    B --> C[Experiment Class];
-    C --> D[Circuit Generation];
-    D --> E{Execution Backend};
-    E --> F[Local Simulator];
-    E --> G[OQTOPUS Backend];
-    F --> H[Parallel Execution (ThreadPoolExecutor)];
-    G --> H;
-    H --> I[Job Submission];
-    I --> J[OQTOPUS];
-    J --> K[Result Aggregation];
-    K --> L[Analysis & Visualization];
-```
-
 1. **CLI Interface (`base_cli.py`)**:
     - The command-line interface is built using `Typer`.
     - The `run` command serves as the entry point for executing experiments.
