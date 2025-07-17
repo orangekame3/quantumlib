@@ -14,7 +14,7 @@ pip install git+https://github.com/orangekame3/quantumlib.git
 # CHSH Bell test
 quantumlib-chsh run --devices qulacs --shots 1000 --points 20
 
-# Rabi oscillations  
+# Rabi oscillations
 quantumlib-rabi run --devices qulacs --shots 1000 --points 40 --backend oqtopus --parallel 20
 
 # Other experiments
@@ -145,6 +145,74 @@ class MyExperiment(BaseExperiment):
 # Run your custom experiment
 experiment = MyExperiment()
 results = experiment.run_experiment(devices=['qulacs'])
+```
+
+## Architecture
+
+This project features a parallel job submission and aggregation function, the architecture of which is described below.
+
+```mermaid
+graph TD
+    A[CLI Interface (Typer)] --> B{Experiment Type};
+    B --> C[Experiment Class];
+    C --> D[Circuit Generation];
+    D --> E{Execution Backend};
+    E --> F[Local Simulator];
+    E --> G[OQTOPUS Backend];
+    F --> H[Parallel Execution (ThreadPoolExecutor)];
+    G --> H;
+    H --> I[Job Submission];
+    I --> J[OQTOPUS];
+    J --> K[Result Aggregation];
+    K --> L[Analysis & Visualization];
+```
+
+1. **CLI Interface (`base_cli.py`)**:
+    - The command-line interface is built using `Typer`.
+    - The `run` command serves as the entry point for executing experiments.
+    - The `run_parallel_execution` method manages parallel execution by selecting either the `oqtopus` or `local_simulator` backend.
+    - `Rich` is used to display progress bars and formatted output.
+
+2. **Experiment (`base_experiment.py`)**:
+   - This is the base class for individual experiments (e.g., CHSH, T1).
+   - The `submit_circuits_parallel` method uses `ThreadPoolExecutor` to submit multiple circuits to OQTOPUS in parallel.
+   - The `collect_results_parallel` method collects the results of the submitted jobs in parallel.
+   - Local simulation is also supported via the `run_circuit_locally` method.
+
+3. **Backend (`oqtopus.py`)**:
+   - This module handles communication with the OQTOPUS backend using `quri-parts-oqtopus`.
+   - `submit_circuit_to_oqtopus` submits a single circuit.
+   - `get_oqtopus_result` retrieves the result of a job.
+
+### Parallel Execution Flow
+
+The following diagram illustrates the process of parallel job submission and result aggregation.
+
+```mermaid
+sequenceDiagram
+    participant CLI
+    participant Experiment
+    participant ThreadPoolExecutor
+    participant OQTOPUS
+
+    CLI->>Experiment: run_experiment()
+    Experiment->>Experiment: create_circuits()
+    Experiment->>ThreadPoolExecutor: submit_circuits_parallel()
+    loop For each circuit
+        ThreadPoolExecutor->>OQTOPUS: submit_circuit_to_oqtopus()
+    end
+    OQTOPUS-->>ThreadPoolExecutor: Job IDs
+    ThreadPoolExecutor-->>Experiment: Job IDs
+
+    Experiment->>ThreadPoolExecutor: collect_results_parallel()
+    loop For each Job ID
+        ThreadPoolExecutor->>OQTOPUS: get_oqtopus_result()
+    end
+    OQTOPUS-->>ThreadPoolExecutor: Results
+    ThreadPoolExecutor-->>Experiment: Results
+
+    Experiment->>Experiment: analyze_results()
+    Experiment-->>CLI: Final Results
 ```
 
 ## Features
