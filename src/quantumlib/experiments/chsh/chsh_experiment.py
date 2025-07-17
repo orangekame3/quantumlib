@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-CHSH Experiment Class - CHSH Bell不等式違反実験専用クラス
-BaseExperimentを継承し、CHSH実験に特化した実装を提供
+CHSH Experiment Class - Specialized class for CHSH Bell inequality violation experiments
+Inherits from BaseExperiment and provides implementation specialized for CHSH experiments
 """
 
 import time
@@ -15,24 +15,24 @@ from ...core.base_experiment import BaseExperiment
 
 class CHSHExperiment(BaseExperiment):
     """
-    CHSH Bell不等式違反実験クラス
+    CHSH Bell inequality violation experiment class
 
-    特化機能:
-    - CHSH回路の自動生成
-    - Bell不等式値計算
-    - 位相スキャン実験
-    - CHSH特有のデータ保存
+    Specialized features:
+    - Automatic CHSH circuit generation
+    - Bell inequality value calculation
+    - Phase scan experiments
+    - CHSH-specific data saving
     """
 
     def __init__(self, experiment_name: str = None, **kwargs):
-        # CHSH実験固有のパラメータを抽出（BaseExperimentには渡さない）
+        # Extract CHSH experiment-specific parameters (not passed to BaseExperiment)
         chsh_specific_params = {"phase_points", "theta_a", "theta_b", "points"}
 
-        # BaseExperimentに渡すkwargsをフィルタリング
+        # Filter kwargs to pass to BaseExperiment
         base_kwargs = {k: v for k, v in kwargs.items() if k not in chsh_specific_params}
         super().__init__(experiment_name, **base_kwargs)
 
-        # CHSH実験固有の設定
+        # CHSH experiment-specific settings
         self.classical_bound = 2.0
         self.theoretical_max_s = 2 * np.sqrt(2)
 
@@ -43,24 +43,24 @@ class CHSHExperiment(BaseExperiment):
 
     def create_circuits(self, **kwargs) -> list[Any]:
         """
-        CHSH実験回路作成（T1/Ramsey標準パターン）
-        4測定方式でバッチ回路を生成
+        Create CHSH experiment circuits (T1/Ramsey standard pattern)
+        Generate batch circuits using 4-measurement method
 
         Args:
-            points: 位相点数 (default: 20) ← CLIから渡される
-            phase_points: 位相点数 (default: 20)
-            theta_a: Alice角度 (default: 0)
-            theta_b: Bob角度 (default: π/4)
+            points: Number of phase points (default: 20) ← passed from CLI
+            phase_points: Number of phase points (default: 20)
+            theta_a: Alice angle (default: 0)
+            theta_b: Bob angle (default: π/4)
 
         Returns:
-            CHSH回路リスト（4測定 × phase_points個）
+            List of CHSH circuits (4 measurements × phase_points circuits)
         """
-        # CLIからのpointsパラメータを優先（T1/Ramseyと同じパターン）
+        # Prioritize points parameter from CLI (same pattern as T1/Ramsey)
         phase_points = kwargs.get("points", kwargs.get("phase_points", 20))
         kwargs.get("theta_a", 0)
         kwargs.get("theta_b", np.pi / 4)
 
-        # 位相範囲
+        # Phase range
         phase_range = np.linspace(0, 2 * np.pi, phase_points)
 
         # Standard CHSH measurement angles
@@ -79,7 +79,7 @@ class CHSHExperiment(BaseExperiment):
             (angles["theta_a1"], angles["theta_b1"]),  # ⟨A₁B₁⟩
         ]
 
-        # メタデータ保存（T1/Ramseyパターン）
+        # Save metadata (T1/Ramsey pattern)
         self.experiment_params = {
             "phase_range": phase_range.tolist(),
             "phase_points": len(phase_range),
@@ -87,7 +87,7 @@ class CHSHExperiment(BaseExperiment):
             "measurements": measurements,
         }
 
-        # 回路作成：全位相×全測定の組み合わせを順次生成（T1/Ramseyパターン）
+        # Circuit creation: sequentially generate all phase×measurement combinations (T1/Ramsey pattern)
         circuits = []
         for _i, phase_phi in enumerate(phase_range):
             for _j, (theta_a_meas, theta_b_meas) in enumerate(measurements):
@@ -96,12 +96,12 @@ class CHSHExperiment(BaseExperiment):
                 )
                 circuits.append(circuit)
 
-        # T1/Ramsey標準ログパターンに統一
+        # Unified with T1/Ramsey standard log pattern
         print(
             f"CHSH circuits: Phase range {len(phase_range)} points from {phase_range[0]:.3f} to {phase_range[-1]:.3f}, 4 measurements = {len(circuits)} circuits"
         )
         print(
-            "CHSH circuit structure: |Φ⁺⟩ → A(θₐ), B(θᵦ) → measure (期待: S値でBell不等式違反)"
+            "CHSH circuit structure: |Φ⁺⟩ → A(θₐ), B(θᵦ) → measure (expected: Bell inequality violation with S-value)"
         )
 
         return circuits
@@ -110,7 +110,7 @@ class CHSHExperiment(BaseExperiment):
         self, theta_a: float, theta_b: float, phase_phi: float
     ):
         """
-        単一CHSH回路作成（T1/Ramseyパターン）
+        Create single CHSH circuit (T1/Ramsey pattern)
         """
         return create_chsh_circuit(theta_a, theta_b, phase_phi)
 
@@ -118,25 +118,25 @@ class CHSHExperiment(BaseExperiment):
         self, results: dict[str, list[dict[str, Any]]], **kwargs
     ) -> dict[str, Any]:
         """
-        CHSH実験結果解析（T1/Ramsey標準パターン）
+        Analyze CHSH experiment results (T1/Ramsey standard pattern)
 
         Args:
-            results: 生測定結果（BaseExperimentCLIから渡される）
+            results: Raw measurement results (passed from BaseExperimentCLI)
 
         Returns:
-            CHSH解析結果
+            CHSH analysis results
         """
         if not results:
             return {"error": "No results to analyze"}
 
-        # experiment_paramsから必要な情報を取得
+        # Get necessary information from experiment_params
         phase_range = np.array(self.experiment_params["phase_range"])
         angles = self.experiment_params["angles"]
         measurements = self.experiment_params["measurements"]
 
         print("   → Processing CHSH 4-measurement results...")
 
-        # BaseExperimentCLIから来た結果を4測定CHSH形式に変換
+        # Convert results from BaseExperimentCLI to 4-measurement CHSH format
         processed_results = self._analyze_chsh_device_results(
             results, phase_range, measurements
         )
@@ -153,7 +153,7 @@ class CHSHExperiment(BaseExperiment):
         measurements: list[tuple],
     ) -> dict[str, dict]:
         """
-        CHSH結果をデバイス別に解析（T1/Ramseyパターン）
+        Analyze CHSH results by device (T1/Ramsey pattern)
         """
         all_results = {}
         phase_points = len(phase_range)

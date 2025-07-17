@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-CHSH Experiment Template - 継承ベースの実験クラス使用例
-BaseExperiment → CHSHExperiment の継承パターンで実験を実行
+CHSH Experiment Template - Inheritance-based experiment class usage examples
+Execute experiments using BaseExperiment → CHSHExperiment inheritance pattern
 """
 
 import numpy as np
@@ -11,26 +11,26 @@ from ..experiments.chsh.chsh_experiment import CHSHExperiment
 
 def basic_chsh_experiment():
     """
-    基本的なCHSH実験
+    Basic CHSH experiment
     """
     print("🔬 Basic CHSH Experiment")
     print("=" * 30)
 
-    # CHSH実験クラス作成
+    # Create CHSH experiment class
     exp = CHSHExperiment("basic_chsh")
 
-    # OQTOPUS設定カスタマイズ
+    # Customize OQTOPUS settings
     exp.transpiler_options.update({"optimization_level": 2, "routing_method": "sabre"})
     exp.mitigation_options.update({"ro_error_mitigation": "pseudo_inverse"})
 
-    # 位相スキャン実験実行
+    # Execute phase scan experiment
     results = exp.run_phase_scan(
         devices=["qulacs"], phase_points=8, theta_a=0, theta_b=np.pi / 4, shots=500
     )
 
     print("✅ Basic CHSH experiment completed")
 
-    # 結果確認
+    # Check results
     if "device_results" in results["analyzed_results"]:
         for device, analysis in results["analyzed_results"]["device_results"].items():
             stats = analysis["statistics"]
@@ -44,20 +44,20 @@ def basic_chsh_experiment():
 
 def angle_comparison_experiment():
     """
-    角度比較CHSH実験
+    Angle comparison CHSH experiment
     """
     print("\n📐 Angle Comparison Experiment")
     print("=" * 35)
 
     exp = CHSHExperiment("angle_comparison")
 
-    # 複数の角度ペアで比較
+    # Compare with multiple angle pairs
     angle_pairs = [
-        (0, np.pi / 4),  # 標準CHSH
-        (np.pi / 4, 0),  # 入れ替え
-        (np.pi / 8, np.pi / 8),  # 対称
-        (0, np.pi / 8),  # 小角度
-        (np.pi / 3, np.pi / 6),  # 非標準
+        (0, np.pi / 4),  # Standard CHSH
+        (np.pi / 4, 0),  # Swapped
+        (np.pi / 8, np.pi / 8),  # Symmetric
+        (0, np.pi / 8),  # Small angle
+        (np.pi / 3, np.pi / 6),  # Non-standard
     ]
 
     results = exp.run_angle_comparison(
@@ -66,7 +66,7 @@ def angle_comparison_experiment():
 
     print("✅ Angle comparison completed")
 
-    # ベスト角度表示
+    # Display best angles
     summary = results["comparison_summary"]
     if summary["best_angle_pair"]:
         best_angles = summary["best_angle_pair"]
@@ -79,14 +79,14 @@ def angle_comparison_experiment():
 
 def custom_phase_range_experiment():
     """
-    カスタム位相範囲でのCHSH実験
+    CHSH experiment with custom phase range
     """
     print("\n🌊 Custom Phase Range Experiment")
     print("=" * 35)
 
     exp = CHSHExperiment("custom_phase")
 
-    # カスタム位相範囲（Bell違反が期待される範囲に集中）
+    # Custom phase range (focused on range where Bell violation is expected)
     custom_phases = np.array([0, np.pi / 8, np.pi / 4, np.pi / 2, 3 * np.pi / 4, np.pi])
 
     results = exp.run_experiment(
@@ -99,7 +99,7 @@ def custom_phase_range_experiment():
 
     print("✅ Custom phase range experiment completed")
 
-    # 各位相でのS値確認
+    # Check S values for each phase
     if "device_results" in results["analyzed_results"]:
         for device, analysis in results["analyzed_results"]["device_results"].items():
             s_values = analysis["S_values"]
@@ -113,16 +113,16 @@ def custom_phase_range_experiment():
 
 def multi_device_chsh_experiment():
     """
-    複数デバイスでのCHSH実験
+    CHSH experiment with multiple devices
     """
     print("\n🔀 Multi-Device CHSH Experiment")
     print("=" * 35)
 
     exp = CHSHExperiment("multi_device")
 
-    # 複数デバイスでの位相スキャン
+    # Phase scan with multiple devices
     results = exp.run_phase_scan(
-        devices=["qulacs"],  # 実環境では ['qulacs', 'anemone']
+        devices=["qulacs"],  # In real environment: ['qulacs', 'anemone']
         phase_points=6,
         theta_a=0,
         theta_b=np.pi / 4,
@@ -131,7 +131,7 @@ def multi_device_chsh_experiment():
 
     print("✅ Multi-device experiment completed")
 
-    # デバイス比較
+    # Device comparison
     if "comparison" in results["analyzed_results"]:
         comparison = results["analyzed_results"]["comparison"]
         print("📊 Device comparison:")
@@ -145,14 +145,14 @@ def multi_device_chsh_experiment():
 
 def advanced_chsh_with_custom_settings():
     """
-    高度なCHSH実験（カスタム設定）
+    Advanced CHSH experiment (custom settings)
     """
     print("\n🔬 Advanced CHSH with Custom Settings")
     print("=" * 40)
 
     exp = CHSHExperiment("advanced_chsh")
 
-    # 高度なOQTOPUS設定
+    # Advanced OQTOPUS settings
     exp.transpiler_options.update(
         {
             "optimization_level": 3,
@@ -174,7 +174,7 @@ def advanced_chsh_with_custom_settings():
     print(f"  Optimization: level {exp.transpiler_options['optimization_level']}")
     print(f"  Error mitigation: {exp.mitigation_options['ro_error_mitigation']}")
 
-    # 高精度位相スキャン
+    # High-precision phase scan
     results = exp.run_phase_scan(
         devices=["qulacs"],
         phase_points=12,
@@ -191,24 +191,24 @@ def advanced_chsh_with_custom_settings():
 
 def main():
     """
-    CHSHExperiment継承クラスの使用例
+    Usage examples of CHSHExperiment inheritance class
     """
     print("🧪 CHSH Experiment Class Examples")
     print("=" * 45)
 
-    # 基本CHSH実験
+    # Basic CHSH experiment
     exp1, results1 = basic_chsh_experiment()
 
-    # 角度比較実験
+    # Angle comparison experiment
     exp2, results2 = angle_comparison_experiment()
 
-    # カスタム位相範囲実験
+    # Custom phase range experiment
     exp3, results3 = custom_phase_range_experiment()
 
-    # 複数デバイス実験
+    # Multi-device experiment
     exp4, results4 = multi_device_chsh_experiment()
 
-    # 高度な設定実験
+    # Advanced settings experiment
     exp5, results5 = advanced_chsh_with_custom_settings()
 
     print("\n" + "=" * 45)

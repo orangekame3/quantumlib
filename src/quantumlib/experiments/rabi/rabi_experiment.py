@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Rabi Experiment Class - Rabi振動実験専用クラス
-BaseExperimentを継承し、Rabi実験に特化した実装を提供
+Rabi Experiment Class - Specialized class for Rabi oscillation experiments
+Inherits from BaseExperiment and provides implementation specialized for Rabi experiments
 """
 
 import time
@@ -17,17 +17,17 @@ from ...core.base_experiment import BaseExperiment
 
 class RabiExperiment(BaseExperiment):
     """
-    Rabi振動実験クラス
+    Rabi oscillation experiment class
 
-    特化機能:
-    - Rabi振動回路の自動生成
-    - 励起確率計算
-    - ドライブ振幅スキャン実験
-    - Rabi周波数フィッティング
+    Specialized features:
+    - Automatic Rabi oscillation circuit generation
+    - Excitation probability calculation
+    - Drive amplitude scan experiments
+    - Rabi frequency fitting
     """
 
     def __init__(self, experiment_name: str = None, **kwargs):
-        # Rabi実験固有のパラメータを抽出（BaseExperimentには渡さない）
+        # Extract Rabi experiment-specific parameters (not passed to BaseExperiment)
         rabi_specific_params = {
             "amplitude_points",
             "max_amplitude",
@@ -36,12 +36,12 @@ class RabiExperiment(BaseExperiment):
             "points",
         }
 
-        # BaseExperimentに渡すkwargsをフィルタリング
+        # Filter kwargs to pass to BaseExperiment
         base_kwargs = {k: v for k, v in kwargs.items() if k not in rabi_specific_params}
         super().__init__(experiment_name, **base_kwargs)
 
-        # Rabi実験固有の設定
-        self.expected_pi_pulse = np.pi  # 期待されるπパルス角度
+        # Rabi experiment-specific settings
+        self.expected_pi_pulse = np.pi  # Expected π pulse angle
 
         print(f"Rabi experiment: Expected π pulse ≈ {self.expected_pi_pulse:.3f} rad")
 

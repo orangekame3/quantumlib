@@ -799,11 +799,11 @@ class T1Experiment(BaseExperiment):
         self, decimal_counts: dict[str, int]
     ) -> dict[str, int]:
         """
-        OQTOPUSの10進数countsを2進数形式に変換
+        Convert OQTOPUS decimal counts to binary format
 
-        1量子ビットの場合:
-        0 -> "0"  (|0⟩状態)
-        1 -> "1"  (|1⟩状態)
+        For 1 qubit:
+        0 -> "0"  (|0⟩ state)
+        1 -> "1"  (|1⟩ state)
         """
         binary_counts = {}
 
@@ -841,7 +841,7 @@ class T1Experiment(BaseExperiment):
 
     def _calculate_z_expectation(self, counts: dict[str, int]) -> float:
         """
-        <Z>期待値計算（readout error耐性）
+        Calculate <Z> expectation value (readout error resistant)
         """
         total = sum(counts.values())
         if total == 0:

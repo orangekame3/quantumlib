@@ -83,7 +83,9 @@ class T2EchoExperiment(BaseExperiment):
             T2 Echo circuit list
         """
         delay_points = kwargs.get("delay_points", 51)
-        max_delay = kwargs.get("max_delay", 500000)  # T2 measurement requires longer times
+        max_delay = kwargs.get(
+            "max_delay", 500000
+        )  # T2 measurement requires longer times
         echo_type = kwargs.get("echo_type", self.echo_type)
         num_echoes = kwargs.get("num_echoes", self.num_echoes)
 
@@ -359,7 +361,7 @@ class T2EchoExperiment(BaseExperiment):
                 "Qiskit is required for T2 Echo circuit creation"
             ) from None
 
-        # 1量子ビット + 1測定ビット
+        # 1 qubit + 1 classical bit
         circuit = QuantumCircuit(1, 1)
 
         if echo_type.lower() == "hahn":
@@ -412,7 +414,7 @@ class T2EchoExperiment(BaseExperiment):
         else:
             raise ValueError(f"Unknown echo_type: {echo_type}. Use 'hahn' or 'cpmg'")
 
-        # 測定
+        # Measurement
         circuit.measure(0, 0)
 
         return circuit
@@ -421,13 +423,13 @@ class T2EchoExperiment(BaseExperiment):
         self, counts: dict[str, int]
     ) -> dict[str, int]:
         """
-        OQTOPUS decimal countsを binary countsに変換
+        Convert OQTOPUS decimal counts to binary counts
         """
         binary_counts = {}
         for decimal_str, count in counts.items():
             try:
                 decimal_value = int(decimal_str)
-                binary_str = format(decimal_value, "01b")  # 1量子ビット
+                binary_str = format(decimal_value, "01b")  # 1 qubit
                 binary_counts[binary_str] = binary_counts.get(binary_str, 0) + count
             except ValueError:
                 binary_counts[decimal_str] = count
@@ -435,13 +437,13 @@ class T2EchoExperiment(BaseExperiment):
 
     def _calculate_p0_probability(self, counts: dict[str, int]) -> float:
         """
-        P(0) 確率計算（T2 Echo用）
-        T2 Echoでは P(0) = A * exp(-t/T2) + B の形で減衰
+        Calculate P(0) probability (for T2 Echo)
+        In T2 Echo, P(0) decays as P(0) = A * exp(-t/T2) + B
         """
         binary_counts = self._convert_decimal_to_binary_counts(counts)
         total = sum(binary_counts.values())
         if total == 0:
-            return 0.5  # デフォルト値
+            return 0.5  # Default value
         n_0 = binary_counts.get("0", 0)
         p0 = n_0 / total
         return p0

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-CHSH experiments module - CHSH Bell不等式違反実験
+CHSH experiments module - CHSH Bell inequality violation experiment
 """
 
 from .chsh_experiment import CHSHExperiment

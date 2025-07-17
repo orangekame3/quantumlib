@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Simple OQTOPUS Template - OQTOPUSベースのシンプル開発テンプレート
-OQTOPUSバックエンドがユーザーに見える、実用的な設計
+Simple OQTOPUS Template - Simple development template based on OQTOPUS
+Practical design where OQTOPUS backend is visible to users
 """
 
 import numpy as np
@@ -12,15 +12,15 @@ from ..circuit.factory import create_chsh_circuit
 
 def my_experiment_oqtopus():
     """
-    OQTOPUSベースのシンプル実験
+    Simple experiment based on OQTOPUS
     """
     print("🔬 My OQTOPUS Experiment")
     print("=" * 30)
 
-    # シンプルな実験セットアップ
+    # Simple experiment setup
     exp = QuantumExperimentSimple("my_oqtopus_exp")
 
-    # OQTOPUS設定を直接編集
+    # Direct editing of OQTOPUS settings
     exp.transpiler_options["optimization_level"] = 2
     exp.transpiler_options["routing_method"] = "sabre"
     exp.mitigation_options["ro_error_mitigation"] = "least_squares"
@@ -28,7 +28,7 @@ def my_experiment_oqtopus():
     print(f"🔧 Transpiler options: {exp.transpiler_options}")
     print(f"🔧 Mitigation options: {exp.mitigation_options}")
 
-    # 回路作成（circuit_factory使用）
+    # Circuit creation (using circuit_factory)
     circuits = []
     params = [(0, np.pi / 4), (np.pi / 4, 0)]
 
@@ -41,14 +41,14 @@ def my_experiment_oqtopus():
             f"Depth: {circuit.depth()}"
         )
 
-    # OQTOPUS並列実行
-    devices = ["qulacs"]  # 実環境では ['qulacs', 'anemone']
+    # OQTOPUS parallel execution
+    devices = ["qulacs"]  # In real environment: ['qulacs', 'anemone']
     print(f"\n🚀 Running on OQTOPUS: {devices}")
 
     job_ids = exp.submit_circuits_parallel(circuits, devices, shots=500)
     results = exp.collect_results_parallel(job_ids)
 
-    # 保存
+    # Save results
     if results:
         exp.save_results(results, {"experiment_type": "basic_oqtopus"})
         print("✅ Results saved")
@@ -59,23 +59,23 @@ def my_experiment_oqtopus():
 
 def my_custom_oqtopus_backend():
     """
-    カスタムOQTOPUSバックエンドを使用
+    Use custom OQTOPUS backend
     """
     print("\n🔧 Custom OQTOPUS Backend")
     print("=" * 30)
 
-    # カスタムOQTOPUSバックエンド作成（ユーザーに見える）
+    # Create custom OQTOPUS backend (visible to user)
     try:
         from quri_parts_oqtopus.backend import OqtopusSamplingBackend
 
-        # ユーザーがOQTOPUSバックエンドを直接制御
+        # User directly controls OQTOPUS backend
         custom_backend = OqtopusSamplingBackend()
 
-        # カスタムバックエンドで実験初期化
+        # Initialize experiment with custom backend
         exp = QuantumExperimentSimple("custom_backend", custom_backend)
 
-        # カスタム設定（直接編集）
-        exp.anemone_basis_gates = ["sx", "x", "rz", "cx", "ry"]  # 追加ゲート
+        # Custom settings (direct editing)
+        exp.anemone_basis_gates = ["sx", "x", "rz", "cx", "ry"]  # Additional gates
         exp.transpiler_options.update(
             {
                 "basis_gates": exp.anemone_basis_gates,
@@ -90,7 +90,7 @@ def my_custom_oqtopus_backend():
 
         print("✅ Custom OQTOPUS backend configured")
 
-        # 実験実行
+        # Execute experiment
         circuit = create_chsh_circuit(0, np.pi / 4, 0)
         job_ids = exp.submit_circuits_parallel([circuit], ["qulacs"], shots=100)
         results = exp.collect_results_parallel(job_ids)
@@ -105,15 +105,15 @@ def my_custom_oqtopus_backend():
 
 def my_phase_scan_oqtopus():
     """
-    OQTOPUSでの位相スキャン
+    Phase scan with OQTOPUS
     """
     print("\n🌊 OQTOPUS Phase Scan")
     print("=" * 25)
 
     exp = QuantumExperimentSimple("phase_scan_oqtopus")
 
-    # 位相スキャン回路作成
-    phases = np.linspace(0, np.pi, 4)  # 4点スキャン
+    # Create phase scan circuits
+    phases = np.linspace(0, np.pi, 4)  # 4-point scan
     circuits = []
 
     print("🔧 Creating phase scan circuits:")
@@ -123,12 +123,12 @@ def my_phase_scan_oqtopus():
         expected_s = 2 * np.sqrt(2) * np.cos(phase)
         print(f"  φ={phase:.3f}, Expected S={expected_s:.2f}")
 
-    # OQTOPUS実行
+    # OQTOPUS execution
     devices = ["qulacs"]
     job_ids = exp.submit_circuits_parallel(circuits, devices, shots=300)
     results = exp.collect_results_parallel(job_ids)
 
-    # 自動保存（Bell違反期待時）
+    # Auto-save (when Bell violation expected)
     expected_violations = sum(1 for p in phases if abs(np.cos(p)) > 1 / np.sqrt(2))
     if results and expected_violations > 0:
         metadata = {
@@ -144,29 +144,29 @@ def my_phase_scan_oqtopus():
 
 def direct_oqtopus_usage():
     """
-    OQTOPUS機能を直接使用する例
+    Example of directly using OQTOPUS functionality
     """
     print("\n🔗 Direct OQTOPUS Usage")
     print("=" * 25)
 
     exp = QuantumExperimentSimple("direct_oqtopus")
 
-    # 回路作成
+    # Create circuit
     circuit = create_chsh_circuit(0, np.pi / 4, 0)
 
-    # 直接OQTOPUS投入（ユーザーが見える）
+    # Direct OQTOPUS submission (visible to user)
     print("🚀 Direct OQTOPUS submission:")
     job_id = exp.submit_circuit_to_oqtopus(circuit, shots=200, device_id="qulacs")
 
     if job_id:
         print(f"✅ Job submitted: {job_id}")
 
-        # 直接結果取得
+        # Direct result retrieval
         result = exp.get_oqtopus_result(job_id)
         if result:
             print(f"✅ Result collected: {result.get('success', False)}")
 
-            # 手動保存
+            # Manual save
             exp.save_results({"direct_result": result}, filename="direct_oqtopus")
 
     return exp
@@ -174,28 +174,28 @@ def direct_oqtopus_usage():
 
 def main():
     """
-    OQTOPUSベースの実用例
+    Practical examples based on OQTOPUS
     """
     print("🧪 OQTOPUS-Based Quantum Experiments")
     print("=" * 45)
 
-    # 基本OQTOPUS実験
+    # Basic OQTOPUS experiment
     exp1, results1 = my_experiment_oqtopus()
 
-    # カスタムバックエンド
+    # Custom backend
     exp2, results2 = my_custom_oqtopus_backend()
 
-    # 位相スキャン
+    # Phase scan
     exp3, results3 = my_phase_scan_oqtopus()
 
-    # 直接OQTOPUS使用
+    # Direct OQTOPUS usage
     exp4 = direct_oqtopus_usage()
 
     print("\n" + "=" * 45)
     print("🎯 All OQTOPUS experiments completed!")
     print("=" * 45)
 
-    # OQTOPUS設計の利点
+    # Benefits of OQTOPUS-based design
     print("\n🏗️ OQTOPUS-Based Design Benefits:")
     print("  ✅ Circuit creation is separated (circuit_factory)")
     print("  ✅ OQTOPUS backend is visible and customizable")

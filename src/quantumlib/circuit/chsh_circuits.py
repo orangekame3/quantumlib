@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """
-CHSH Circuit Factory - CHSH実験専用回路作成
+CHSH Circuit Factory - Dedicated Circuit Creation for CHSH Experiments
 """
 
 from typing import Any
 
-# Qiskitのみに依存（OQTOPUS非依存）
+# Depends only on Qiskit (OQTOPUS-independent)
 try:
     from qiskit import ClassicalRegister, QuantumCircuit, QuantumRegister
 
@@ -16,8 +16,8 @@ except ImportError:
 
 class CHSHCircuitFactory:
     """
-    CHSH回路作成専用ファクトリー
-    OQTOPUS/quri-partsに依存しない純粋な回路作成
+    Dedicated factory for creating CHSH circuits
+    Pure circuit creation without dependence on OQTOPUS/quri-parts
     """
 
     @staticmethod
@@ -25,37 +25,37 @@ class CHSHCircuitFactory:
         theta_a: float, theta_b: float, phase_phi: float = 0
     ) -> Any:
         """
-        CHSH回路を作成（標準的なCHSH実験）
+        Create CHSH circuit (standard CHSH experiment)
 
         Args:
-            theta_a: Alice測定角度
-            theta_b: Bob測定角度
-            phase_phi: 位相パラメータ（Bell状態の相対位相制御）
+            theta_a: Alice measurement angle
+            theta_b: Bob measurement angle
+            phase_phi: Phase parameter (relative phase control of Bell state)
 
         Returns:
-            Qiskit量子回路
+            Qiskit quantum circuit
         """
         if not QISKIT_AVAILABLE:
             raise ImportError("Qiskit is required for circuit creation")
 
-        # 2量子ビット + 2古典ビット
+        # 2 quantum bits + 2 classical bits
         qubits = QuantumRegister(2, "q")
         bits = ClassicalRegister(2, "c")
         qc = QuantumCircuit(qubits, bits)
 
-        # Bell状態作成 |Φ+⟩ = (|00⟩ + |11⟩)/√2
+        # Create Bell state |Φ+⟩ = (|00⟩ + |11⟩)/√2
         qc.h(0)
         qc.cx(0, 1)
 
-        # 測定基底の回転（古い実装の正常動作する方法）
-        # Alice: θ_a回転後のPauli-X測定
+        # Rotation of measurement basis (method from old implementation that works correctly)
+        # Alice: Pauli-X measurement after θ_a rotation
         qc.ry(theta_a, 0)
 
-        # Bob: θ_b + φ回転後のPauli-X測定（位相変調を測定角度に適用）
-        # これによりS(φ) = S₀ cos(φ)の正しい依存性が得られる
+        # Bob: Pauli-X measurement after θ_b + φ rotation (apply phase modulation to measurement angle)
+        # This gives the correct dependence S(φ) = S₀ cos(φ)
         qc.ry(theta_b + phase_phi, 1)
 
-        # 測定（Z基底での測定 = 回転後のX基底測定）
+        # Measurement (Z-basis measurement = X-basis measurement after rotation)
         qc.measure(0, 0)  # Alice → c[0]
         qc.measure(1, 1)  # Bob → c[1]
 
@@ -64,7 +64,7 @@ class CHSHCircuitFactory:
     @staticmethod
     def create_bell_state_circuit() -> Any:
         """
-        基本Bell状態回路を作成
+        Create basic Bell state circuit
         """
         if not QISKIT_AVAILABLE:
             raise ImportError("Qiskit is required for circuit creation")
@@ -78,18 +78,18 @@ class CHSHCircuitFactory:
     @staticmethod
     def create_custom_bell_measurement(theta_a: float, theta_b: float) -> Any:
         """
-        カスタムBell測定回路
+        Custom Bell measurement circuit
         """
         if not QISKIT_AVAILABLE:
             raise ImportError("Qiskit is required for circuit creation")
 
         qc = QuantumCircuit(2, 2)
 
-        # Bell状態作成
+        # Create Bell state
         qc.h(0)
         qc.cx(0, 1)
 
-        # カスタム測定基底
+        # Custom measurement basis
         qc.ry(2 * theta_a, 0)
         qc.ry(2 * theta_b, 1)
 
@@ -99,23 +99,23 @@ class CHSHCircuitFactory:
         return qc
 
 
-# 便利関数
+# Convenience functions
 def create_chsh_circuit(theta_a: float, theta_b: float, phase_phi: float = 0) -> Any:
     """
-    CHSH回路作成の便利関数
+    Convenience function for creating CHSH circuits
     """
     return CHSHCircuitFactory.create_chsh_circuit(theta_a, theta_b, phase_phi)
 
 
 def create_bell_state() -> Any:
     """
-    Bell状態作成の便利関数
+    Convenience function for creating Bell states
     """
     return CHSHCircuitFactory.create_bell_state_circuit()
 
 
 def create_custom_bell_measurement(theta_a: float, theta_b: float) -> Any:
     """
-    カスタムBell測定回路作成の便利関数
+    Convenience function for creating custom Bell measurement circuits
     """
     return CHSHCircuitFactory.create_custom_bell_measurement(theta_a, theta_b)

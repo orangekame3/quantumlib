@@ -370,12 +370,12 @@ class RamseyExperiment(BaseExperiment):
                     counts = None
                     shots = 0
 
-                    # 方法1: BaseExperimentのget_oqtopus_resultが直接countsを返す場合
+                    # Method 1: When BaseExperiment's get_oqtopus_result directly returns counts
                     if "counts" in result:
                         counts = result["counts"]
                         shots = result.get("shots", 0)
 
-                    # 方法2: job_info内のresult構造から取得
+                    # Method 2: Get from result structure within job_info
                     if not counts:
                         job_info = result.get("job_info", {})
                         if isinstance(job_info, dict):

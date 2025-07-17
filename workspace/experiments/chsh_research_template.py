@@ -66,7 +66,7 @@ class CHSHResearchExperiment:
         # High-density phase scan
         results = self.base_exp.run_phase_scan(
             devices=devices,
-            phase_points=50,  # 高解像度
+            phase_points=50,  # High resolution
             theta_a=0,
             theta_b=np.pi / 4,
             shots=shots,

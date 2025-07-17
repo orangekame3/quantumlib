@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """
-Common Circuit Utilities - 共通回路ユーティリティ
+Common Circuit Utilities - Common Circuit Utilities
 """
 
 from typing import Any
 
-# Qiskitのみに依存（OQTOPUS非依存）
+# Depends only on Qiskit (OQTOPUS-independent)
 try:
     from qiskit import QuantumCircuit, transpile
 
@@ -16,13 +16,13 @@ except ImportError:
 
 class CommonCircuitUtils:
     """
-    共通回路ユーティリティクラス
+    Common circuit utilities class
     """
 
     @staticmethod
     def optimize_circuit(circuit: Any, optimization_level: int = 1) -> Any:
         """
-        回路最適化（Qiskit使用）
+        Circuit optimization (using Qiskit)
         """
         if not QISKIT_AVAILABLE:
             return circuit
@@ -35,7 +35,7 @@ class CommonCircuitUtils:
     @staticmethod
     def get_circuit_info(circuit: Any) -> dict[str, Any]:
         """
-        回路情報を取得
+        Get circuit information
         """
         if not QISKIT_AVAILABLE or circuit is None:
             return {}
@@ -51,59 +51,59 @@ class CommonCircuitUtils:
     @staticmethod
     def create_identity_circuit(num_qubits: int) -> Any:
         """
-        アイデンティティ回路を作成
+        Create identity circuit
         """
         if not QISKIT_AVAILABLE:
             raise ImportError("Qiskit is required for circuit creation")
 
         qc = QuantumCircuit(num_qubits, num_qubits)
-        # 何もしない（アイデンティティ）
+        # Do nothing (identity)
         qc.measure_all()
         return qc
 
     @staticmethod
     def create_ghz_state(num_qubits: int) -> Any:
         """
-        GHZ状態回路を作成
+        Create GHZ state circuit
         """
         if not QISKIT_AVAILABLE:
             raise ImportError("Qiskit is required for circuit creation")
 
         qc = QuantumCircuit(num_qubits, num_qubits)
 
-        # GHZ状態作成
-        qc.h(0)  # 最初の量子ビットをHadamard
+        # Create GHZ state
+        qc.h(0)  # Hadamard on first qubit
         for i in range(1, num_qubits):
-            qc.cx(0, i)  # CNOT連鎖
+            qc.cx(0, i)  # CNOT chain
 
         qc.measure_all()
         return qc
 
 
-# 便利関数
+# Convenience functions
 def optimize_circuit(circuit: Any, level: int = 1) -> Any:
     """
-    回路最適化の便利関数
+    Convenience function for circuit optimization
     """
     return CommonCircuitUtils.optimize_circuit(circuit, level)
 
 
 def get_circuit_info(circuit: Any) -> dict[str, Any]:
     """
-    回路情報取得の便利関数
+    Convenience function for getting circuit information
     """
     return CommonCircuitUtils.get_circuit_info(circuit)
 
 
 def create_identity_circuit(num_qubits: int) -> Any:
     """
-    アイデンティティ回路作成の便利関数
+    Convenience function for creating identity circuits
     """
     return CommonCircuitUtils.create_identity_circuit(num_qubits)
 
 
 def create_ghz_state(num_qubits: int) -> Any:
     """
-    GHZ状態回路作成の便利関数
+    Convenience function for creating GHZ state circuits
     """
     return CommonCircuitUtils.create_ghz_state(num_qubits)

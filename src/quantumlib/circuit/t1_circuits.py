@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """
-T1 Circuit Factory - T1実験専用回路作成
+T1 Circuit Factory - Dedicated Circuit Creation for T1 Experiments
 """
 
 from typing import Any
 
-# Qiskitのみに依存（OQTOPUS非依存）
+# Depends only on Qiskit (OQTOPUS-independent)
 try:
     from qiskit import ClassicalRegister, QuantumCircuit, QuantumRegister
     from qiskit_aer.noise import NoiseModel, thermal_relaxation_error
@@ -17,38 +17,38 @@ except ImportError:
 
 class T1CircuitFactory:
     """
-    T1実験回路作成専用ファクトリー
-    単一量子ビットのT1減衰測定
+    Dedicated factory for creating T1 experiment circuits
+    Single qubit T1 decay measurement
     """
 
     @staticmethod
     def create_t1_circuit(delay_time: float, t1: float = 500, t2: float = 500) -> Any:
         """
-        T1減衰測定回路を作成
+        Create T1 decay measurement circuit
 
         Args:
-            delay_time: 遅延時間 [ns]
-            t1: T1緩和時間 [ns]
-            t2: T2緩和時間 [ns]
+            delay_time: Delay time [ns]
+            t1: T1 relaxation time [ns]
+            t2: T2 relaxation time [ns]
 
         Returns:
-            Qiskit量子回路
+            Qiskit quantum circuit
         """
         if not QISKIT_AVAILABLE:
             raise ImportError("Qiskit is required for circuit creation")
 
-        # 1量子ビット + 1古典ビット
+        # 1 quantum bit + 1 classical bit
         qubits = QuantumRegister(1, "q")
         bits = ClassicalRegister(1, "c")
         qc = QuantumCircuit(qubits, bits)
 
-        # |1⟩状態に励起
+        # Excite to |1⟩ state
         qc.x(0)
 
-        # 遅延時間の間待機（delayを使用）
+        # Wait during delay time (using delay)
         qc.delay(int(delay_time), 0, unit="ns")
 
-        # Z基底測定
+        # Z-basis measurement
         qc.measure(0, 0)
 
         return qc
@@ -58,36 +58,36 @@ class T1CircuitFactory:
         delay_time: float, t1: float = 500, t2: float = 500
     ) -> tuple[Any, Any]:
         """
-        ノイズモデル付きT1減衰測定回路を作成
+        Create T1 decay measurement circuit with noise model
 
         Args:
-            delay_time: 遅延時間 [ns]
-            t1: T1緩和時間 [ns]
-            t2: T2緩和時間 [ns]
+            delay_time: Delay time [ns]
+            t1: T1 relaxation time [ns]
+            t2: T2 relaxation time [ns]
 
         Returns:
-            (Qiskit量子回路, ノイズモデル)
+            (Qiskit quantum circuit, noise model)
         """
         if not QISKIT_AVAILABLE:
             raise ImportError("Qiskit is required for circuit creation")
 
-        # ノイズモデル構築
+        # Build noise model
         error = thermal_relaxation_error(t1, t2, delay_time)
         noise_model = NoiseModel()
         noise_model.add_quantum_error(error, "delay", [0])
 
-        # 回路定義
+        # Circuit definition
         qubits = QuantumRegister(1, "q")
         bits = ClassicalRegister(1, "c")
         qc = QuantumCircuit(qubits, bits)
 
-        # |1⟩状態に励起
+        # Excite to |1⟩ state
         qc.x(0)
 
-        # 遅延時間の間待機（delayを使用）
+        # Wait during delay time (using delay)
         qc.delay(int(delay_time), 0, unit="ns")
 
-        # Z基底測定
+        # Z-basis measurement
         qc.measure(0, 0)
 
         return qc, noise_model
@@ -97,15 +97,15 @@ class T1CircuitFactory:
         delay_times: list[float], t1: float = 500, t2: float = 500
     ) -> list[Any]:
         """
-        複数の遅延時間に対するT1回路を作成
+        Create T1 circuits for multiple delay times
 
         Args:
-            delay_times: 遅延時間のリスト [ns]
-            t1: T1緩和時間 [ns]
-            t2: T2緩和時間 [ns]
+            delay_times: List of delay times [ns]
+            t1: T1 relaxation time [ns]
+            t2: T2 relaxation time [ns]
 
         Returns:
-            Qiskit量子回路のリスト
+            List of Qiskit quantum circuits
         """
         circuits = []
         for delay_time in delay_times:
@@ -114,10 +114,10 @@ class T1CircuitFactory:
         return circuits
 
 
-# 便利関数
+# Convenience functions
 def create_t1_circuit(delay_time: float, t1: float = 500, t2: float = 500) -> Any:
     """
-    T1減衰測定回路作成の便利関数
+    Convenience function for creating T1 decay measurement circuits
     """
     return T1CircuitFactory.create_t1_circuit(delay_time, t1, t2)
 
@@ -126,7 +126,7 @@ def create_t1_with_noise_model(
     delay_time: float, t1: float = 500, t2: float = 500
 ) -> tuple[Any, Any]:
     """
-    ノイズモデル付きT1減衰測定回路作成の便利関数
+    Convenience function for creating T1 decay measurement circuits with noise model
     """
     return T1CircuitFactory.create_t1_with_noise_model(delay_time, t1, t2)
 
@@ -135,6 +135,6 @@ def create_multiple_t1_circuits(
     delay_times: list[float], t1: float = 500, t2: float = 500
 ) -> list[Any]:
     """
-    複数T1回路作成の便利関数
+    Convenience function for creating multiple T1 circuits
     """
     return T1CircuitFactory.create_multiple_t1_circuits(delay_times, t1, t2)

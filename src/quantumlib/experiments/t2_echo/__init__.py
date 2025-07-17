@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 T2 Echo Experiment Package
-T2 Echo実験（Hahn Echo/CPMG）の実装
+Implementation of T2 Echo experiments (Hahn Echo/CPMG)
 """
 
 from .t2_echo_experiment import T2EchoExperiment

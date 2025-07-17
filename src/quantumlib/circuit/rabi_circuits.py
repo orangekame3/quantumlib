@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 """
-Rabi Circuit Factory - Rabi実験専用回路作成
+Rabi Circuit Factory - Dedicated Circuit Creation for Rabi Experiments
 """
 
 from typing import Any
 
 import numpy as np
 
-# Qiskitのみに依存（OQTOPUS非依存）
+# Depends only on Qiskit (OQTOPUS-independent)
 try:
     from qiskit import ClassicalRegister, QuantumCircuit, QuantumRegister
 
@@ -18,8 +18,8 @@ except ImportError:
 
 class RabiCircuitFactory:
     """
-    Rabi振動実験回路作成専用ファクトリー
-    単一量子ビットのRabi振動測定
+    Dedicated factory for creating Rabi oscillation experiment circuits
+    Single qubit Rabi oscillation measurement
     """
 
     @staticmethod
@@ -27,37 +27,37 @@ class RabiCircuitFactory:
         drive_amplitude: float, drive_time: float, drive_frequency: float = 0.0
     ) -> Any:
         """
-        Rabi振動回路を作成
+        Create Rabi oscillation circuit
 
         Args:
-            drive_amplitude: ドライブ振幅（回転角度に対応）
-            drive_time: ドライブ時間（実際は角度として使用）
-            drive_frequency: ドライブ周波数（位相として使用）
+            drive_amplitude: Drive amplitude (corresponds to rotation angle)
+            drive_time: Drive time (actually used as angle)
+            drive_frequency: Drive frequency (used as phase)
 
         Returns:
-            Qiskit量子回路
+            Qiskit quantum circuit
         """
         if not QISKIT_AVAILABLE:
             raise ImportError("Qiskit is required for circuit creation")
 
-        # 1量子ビット + 1古典ビット
+        # 1 quantum bit + 1 classical bit
         qubits = QuantumRegister(1, "q")
         bits = ClassicalRegister(1, "c")
         qc = QuantumCircuit(qubits, bits)
 
-        # |0⟩状態から開始
+        # Start from |0⟩ state
 
-        # Rabi drive: RX回転（振幅×時間 = 回転角度）
+        # Rabi drive: RX rotation (amplitude × time = rotation angle)
         angle = drive_amplitude * drive_time
 
-        # 周波数による位相考慮
+        # Consider phase due to frequency
         if drive_frequency != 0.0:
-            qc.rz(drive_frequency, 0)  # Z軸位相回転
+            qc.rz(drive_frequency, 0)  # Z-axis phase rotation
 
-        # X軸周りの回転（Rabiドライブ）
+        # Rotation around X-axis (Rabi drive)
         qc.rx(angle, 0)
 
-        # Z基底測定
+        # Z-basis measurement
         qc.measure(0, 0)
 
         return qc
@@ -65,27 +65,27 @@ class RabiCircuitFactory:
     @staticmethod
     def create_ramsey_circuit(wait_time: float, phase: float = 0.0) -> Any:
         """
-        Ramsey実験回路を作成
+        Create Ramsey experiment circuit
 
         Args:
-            wait_time: 待機時間（位相蓄積に対応）
-            phase: 最終π/2パルスの位相
+            wait_time: Wait time (corresponds to phase accumulation)
+            phase: Phase of the final π/2 pulse
 
         Returns:
-            Qiskit量子回路
+            Qiskit quantum circuit
         """
         if not QISKIT_AVAILABLE:
             raise ImportError("Qiskit is required for circuit creation")
 
         qc = QuantumCircuit(1, 1)
 
-        # 第1のπ/2パルス（重ね合わせ状態作成）
+        # First π/2 pulse (create superposition state)
         qc.ry(np.pi / 2, 0)
 
-        # 待機時間による位相蓄積（Z回転で模擬）
+        # Phase accumulation due to wait time (simulated with Z rotation)
         qc.rz(wait_time, 0)
 
-        # 第2のπ/2パルス（位相付き）
+        # Second π/2 pulse (with phase)
         if phase != 0.0:
             qc.rz(phase, 0)
         qc.ry(np.pi / 2, 0)
@@ -97,25 +97,25 @@ class RabiCircuitFactory:
     @staticmethod
     def create_t1_circuit(delay_time: float) -> Any:
         """
-        T1減衰測定回路を作成
+        Create T1 decay measurement circuit
 
         Args:
-            delay_time: 遅延時間
+            delay_time: Delay time
 
         Returns:
-            Qiskit量子回路
+            Qiskit quantum circuit
         """
         if not QISKIT_AVAILABLE:
             raise ImportError("Qiskit is required for circuit creation")
 
         qc = QuantumCircuit(1, 1)
 
-        # |1⟩状態に励起
+        # Excite to |1⟩ state
         qc.x(0)
 
-        # 遅延（実際の実装では待機、ここではアイデンティティで代用）
-        # 実際のハードウェアでは遅延がT1減衰を引き起こす
-        for _ in range(int(delay_time * 10)):  # 擬似的な遅延
+        # Delay (in actual implementation this is waiting, here substituted with identity)
+        # In actual hardware, delay causes T1 decay
+        for _ in range(int(delay_time * 10)):  # Pseudo delay
             qc.id(0)
 
         qc.measure(0, 0)
@@ -125,32 +125,32 @@ class RabiCircuitFactory:
     @staticmethod
     def create_t2_echo_circuit(wait_time: float) -> Any:
         """
-        T2エコー測定回路を作成（スピンエコー）
+        Create T2 echo measurement circuit (spin echo)
 
         Args:
-            wait_time: 待機時間
+            wait_time: Wait time
 
         Returns:
-            Qiskit量子回路
+            Qiskit quantum circuit
         """
         if not QISKIT_AVAILABLE:
             raise ImportError("Qiskit is required for circuit creation")
 
         qc = QuantumCircuit(1, 1)
 
-        # π/2パルス（重ね合わせ状態作成）
+        # π/2 pulse (create superposition state)
         qc.ry(np.pi / 2, 0)
 
-        # τ/2 待機
+        # τ/2 wait
         qc.rz(wait_time / 2, 0)
 
-        # πパルス（エコー）
+        # π pulse (echo)
         qc.x(0)
 
-        # τ/2 待機
+        # τ/2 wait
         qc.rz(wait_time / 2, 0)
 
-        # 最終π/2パルス
+        # Final π/2 pulse
         qc.ry(np.pi / 2, 0)
 
         qc.measure(0, 0)
@@ -158,12 +158,12 @@ class RabiCircuitFactory:
         return qc
 
 
-# 便利関数
+# Convenience functions
 def create_rabi_circuit(
     drive_amplitude: float, drive_time: float, drive_frequency: float = 0.0
 ) -> Any:
     """
-    Rabi振動回路作成の便利関数
+    Convenience function for creating Rabi oscillation circuits
     """
     return RabiCircuitFactory.create_rabi_circuit(
         drive_amplitude, drive_time, drive_frequency
@@ -172,20 +172,20 @@ def create_rabi_circuit(
 
 def create_ramsey_circuit(wait_time: float, phase: float = 0.0) -> Any:
     """
-    Ramsey実験回路作成の便利関数
+    Convenience function for creating Ramsey experiment circuits
     """
     return RabiCircuitFactory.create_ramsey_circuit(wait_time, phase)
 
 
 def create_t1_circuit(delay_time: float) -> Any:
     """
-    T1減衰測定回路作成の便利関数
+    Convenience function for creating T1 decay measurement circuits
     """
     return RabiCircuitFactory.create_t1_circuit(delay_time)
 
 
 def create_t2_echo_circuit(wait_time: float) -> Any:
     """
-    T2エコー測定回路作成の便利関数
+    Convenience function for creating T2 echo measurement circuits
     """
     return RabiCircuitFactory.create_t2_echo_circuit(wait_time)
