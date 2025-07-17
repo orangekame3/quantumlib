@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-QuantumLib - 量子計算実験ライブラリ
+QuantumLib - Quantum computing experiment library
 """
 
 # Core components

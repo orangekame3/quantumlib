@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Templates module - テンプレートとサンプル
+Templates module - Templates and samples
 """
 
 __all__ = []

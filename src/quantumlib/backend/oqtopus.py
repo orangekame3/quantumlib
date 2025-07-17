@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Quantum Experiment Simple - OQTOPUSベース・シンプル設計
-回路作成は分離、OQTOPUSバックエンド部分はユーザーに見える設計
+Quantum Experiment Simple - OQTOPUS-based simple design
+Circuit creation is separated, OQTOPUS backend part is visible to users
 """
 
 import time
@@ -13,7 +13,7 @@ import numpy as np
 from ..circuit.factory import create_chsh_circuit
 from ..core.data_manager import SimpleDataManager
 
-# OQTOPUS imports (ユーザーに見える)
+# OQTOPUS imports (visible to users)
 try:
     from quri_parts_oqtopus.backend import OqtopusSamplingBackend
 
@@ -24,12 +24,12 @@ except ImportError:
 
 class QuantumExperimentSimple:
     """
-    シンプル量子実験クラス
+    Simple quantum experiment class
 
-    設計方針:
-    - 回路作成は分離（circuit_factory使用）
-    - OQTOPUSバックエンドはユーザーに見える
-    - 必要最小限の抽象化
+    Design principles:
+    - Circuit creation is separated (using circuit_factory)
+    - OQTOPUS backend is visible to users
+    - Minimal abstraction
     """
 
     def __init__(
@@ -41,13 +41,13 @@ class QuantumExperimentSimple:
         Initialize quantum experiment
 
         Args:
-            experiment_name: 実験名
-            oqtopus_backend: OQTOPUSバックエンド（省略時は自動作成）
+            experiment_name: Experiment name
+            oqtopus_backend: OQTOPUS backend (auto-created if omitted)
         """
         self.experiment_name = experiment_name or f"quantum_exp_{int(time.time())}"
         self.data_manager = SimpleDataManager(self.experiment_name)
 
-        # OQTOPUSバックエンド設定（ユーザーに見える）
+        # OQTOPUS backend configuration (visible to users)
         if oqtopus_backend:
             self.oqtopus_backend = oqtopus_backend
             self.oqtopus_available = True
@@ -56,21 +56,21 @@ class QuantumExperimentSimple:
             if OQTOPUS_AVAILABLE:
                 self.oqtopus_backend = OqtopusSamplingBackend()
 
-        # OQTOPUS設定（ユーザーが直接編集可能）
+        # OQTOPUS settings (directly editable by users)
         self.anemone_basis_gates = ["sx", "x", "rz", "cx"]
 
-        # transpiler_options - ユーザーが直接アクセス
+        # transpiler_options - direct user access
         self.transpiler_options = {
             "basis_gates": self.anemone_basis_gates,
             "optimization_level": 1,
         }
 
-        # mitigation_options - ユーザーが直接アクセス
+        # mitigation_options - direct user access
         self.mitigation_options = {
             "ro_error_mitigation": "pseudo_inverse",
         }
 
-        # OQTOPUS用の内部構造（後方互換性）
+        # Internal structure for OQTOPUS (backward compatibility)
         self.transpiler_info = {
             "transpiler_lib": "qiskit",
             "transpiler_options": self.transpiler_options,
@@ -84,7 +84,7 @@ class QuantumExperimentSimple:
         self, theta_a: float, theta_b: float, phase_phi: float = 0
     ) -> Any:
         """
-        CHSH回路作成（circuit_factoryを使用）
+        Create CHSH circuit (using circuit_factory)
         """
         return create_chsh_circuit(theta_a, theta_b, phase_phi)
 
@@ -92,29 +92,29 @@ class QuantumExperimentSimple:
         self, circuit: Any, shots: int, device_id: str
     ) -> str | None:
         """
-        単一回路をOQTOPUSに投入（ユーザーに見える実装）
+        Submit single circuit to OQTOPUS (implementation visible to users)
 
         Args:
-            circuit: Qiskit回路
-            shots: ショット数
-            device_id: デバイスID
+            circuit: Qiskit circuit
+            shots: Number of shots
+            device_id: Device ID
 
         Returns:
-            ジョブID
+            Job ID
         """
         if not self.oqtopus_available:
             print("❌ OQTOPUS not available")
             return None
 
         try:
-            # QASM3を標準採用
+            # Use QASM3 as standard
             from qiskit.qasm3 import dumps
 
             qasm_str = dumps(circuit)
 
             f"circuit_{int(time.time())}"
 
-            # transpiler_info, mitigation_infoを動的更新
+            # Dynamically update transpiler_info and mitigation_info
             self.transpiler_info["transpiler_options"] = self.transpiler_options
             self.mitigation_info = self.mitigation_options
 
@@ -140,7 +140,7 @@ class QuantumExperimentSimple:
         submit_interval: float = 1.0,
     ) -> dict[str, list[str]]:
         """
-        複数回路を並列投入
+        Submit multiple circuits in parallel
         """
         print(f"🚀 Submitting {len(circuits)} circuits to {len(devices)} devices")
 
@@ -163,7 +163,7 @@ class QuantumExperimentSimple:
                     else:
                         print(f"❌ Circuit {i + 1}/{len(circuits)} → {device}: failed")
 
-                    # サーバー負荷軽減
+                    # Reduce server load
                     if submit_interval > 0 and i < len(circuits) - 1:
                         time.sleep(submit_interval)
 
@@ -172,7 +172,7 @@ class QuantumExperimentSimple:
 
             return device, device_jobs
 
-        # 並列投入
+        # Parallel submission
         with ThreadPoolExecutor(max_workers=len(devices)) as executor:
             futures = [executor.submit(submit_to_device, device) for device in devices]
 
@@ -187,28 +187,28 @@ class QuantumExperimentSimple:
         self, job_id: str, timeout_minutes: int = 30, verbose_log: bool = False
     ) -> dict[str, Any] | None:
         """
-        OQTOPUS結果取得（ユーザーに見える実装）
+        Get OQTOPUS result (implementation visible to users)
 
         Args:
-            job_id: ジョブID
-            timeout_minutes: タイムアウト（分）
-            verbose_log: 詳細ログ出力の有効/無効
+            job_id: Job ID
+            timeout_minutes: Timeout in minutes
+            verbose_log: Enable/disable verbose logging
 
         Returns:
-            測定結果
+            Measurement results
         """
         if not self.oqtopus_available:
             return None
 
         try:
-            # 詳細ログは有効時のみ出力
+            # Output detailed logs only when enabled
             if verbose_log:
                 print(f"⏳ Waiting for result: {job_id[:8]}...")
 
-            # OQTOPUS結果取得
+            # Get OQTOPUS result
             job = self.oqtopus_backend.retrieve_job(job_id)
 
-            # 結果待機（簡易実装）
+            # Wait for result (simple implementation)
             import time
 
             max_wait = timeout_minutes * 60
@@ -240,7 +240,7 @@ class QuantumExperimentSimple:
         self, job_ids: dict[str, list[str]], wait_minutes: int = 30
     ) -> dict[str, list[dict[str, Any]]]:
         """
-        結果を並列収集
+        Collect results in parallel
         """
         print(f"⏳ Collecting results from {len(job_ids)} devices...")
 
@@ -264,7 +264,7 @@ class QuantumExperimentSimple:
 
         all_results = {}
 
-        # 並列収集
+        # Parallel collection
         with ThreadPoolExecutor(max_workers=len(job_ids)) as executor:
             futures = [
                 executor.submit(collect_from_device, item) for item in job_ids.items()
@@ -286,11 +286,11 @@ class QuantumExperimentSimple:
         wait_minutes: int = 30,
     ) -> dict[str, Any]:
         """
-        CHSH実験を実行
+        Run CHSH experiment
         """
         print(f"🎯 CHSH Experiment: {phase_points} points, {shots} shots")
 
-        # 位相スキャン回路作成（circuit_factory使用）
+        # Create phase scan circuits (using circuit_factory)
         phase_range = np.linspace(0, 2 * np.pi, phase_points)
         circuits = []
 
@@ -300,13 +300,13 @@ class QuantumExperimentSimple:
 
         print(f"🔧 Created {len(circuits)} CHSH circuits")
 
-        # 並列実行
+        # Parallel execution
         job_ids = self.submit_circuits_parallel(
             circuits, devices, shots, submit_interval
         )
         results = self.collect_results_parallel(job_ids, wait_minutes)
 
-        # 理論値計算
+        # Calculate theoretical values
         S_theoretical = 2 * np.sqrt(2) * np.cos(phase_range)
 
         return {
@@ -328,7 +328,7 @@ class QuantumExperimentSimple:
         metadata: dict[str, Any] | None = None,
         filename: str = "job_ids",
     ) -> str:
-        """ジョブID保存"""
+        """Save job IDs"""
         save_data = {
             "job_ids": job_ids,
             "submitted_at": time.time(),
@@ -347,7 +347,7 @@ class QuantumExperimentSimple:
         metadata: dict[str, Any] | None = None,
         filename: str = "results",
     ) -> str:
-        """実験結果保存"""
+        """Save experiment results"""
         save_data = {
             "results": results,
             "saved_at": time.time(),
@@ -357,11 +357,11 @@ class QuantumExperimentSimple:
         return self.data_manager.save_data(save_data, filename)
 
     def save_experiment_summary(self) -> str:
-        """実験サマリー保存"""
+        """Save experiment summary"""
         return self.data_manager.summary()
 
 
-# 便利関数（シンプル版）
+# Convenience functions (simple version)
 def run_chsh_comparison_simple(
     devices: list[str] = ["qulacs"],
     phase_points: int = 20,
@@ -370,7 +370,7 @@ def run_chsh_comparison_simple(
     experiment_name: str | None = None,
 ) -> dict[str, Any]:
     """
-    CHSH比較実験を簡単実行（シンプル版）
+    Simple execution of CHSH comparison experiment (simple version)
     """
     exp = QuantumExperimentSimple(experiment_name)
 

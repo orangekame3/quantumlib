@@ -63,15 +63,15 @@ class CHSHExperiment(BaseExperiment):
         # 位相範囲
         phase_range = np.linspace(0, 2 * np.pi, phase_points)
 
-        # 標準CHSH測定角度
+        # Standard CHSH measurement angles
         angles = {
-            "theta_a0": 0,  # Alice 測定角度1
-            "theta_a1": np.pi / 2,  # Alice 測定角度2
-            "theta_b0": np.pi / 4,  # Bob 測定角度1
-            "theta_b1": -np.pi / 4,  # Bob 測定角度2
+            "theta_a0": 0,  # Alice measurement angle 1
+            "theta_a1": np.pi / 2,  # Alice measurement angle 2
+            "theta_b0": np.pi / 4,  # Bob measurement angle 1
+            "theta_b1": -np.pi / 4,  # Bob measurement angle 2
         }
 
-        # 4測定組み合わせ
+        # 4-measurement combinations
         measurements = [
             (angles["theta_a0"], angles["theta_b0"]),  # ⟨A₀B₀⟩
             (angles["theta_a0"], angles["theta_b1"]),  # ⟨A₀B₁⟩
@@ -493,17 +493,17 @@ class CHSHExperiment(BaseExperiment):
         4測定CHSH方式の実行（量子ベル不等式標準方式）
         ⟨A₀B₀⟩, ⟨A₀B₁⟩, ⟨A₁B₀⟩, ⟨A₁B₁⟩ を個別測定してS = E₁ + E₂ + E₃ - E₄計算
         """
-        # 標準CHSH測定角度
+        # Standard CHSH measurement angles
         angles = {
-            "theta_a0": 0,  # Alice 測定角度1
-            "theta_a1": np.pi / 2,  # Alice 測定角度2
-            "theta_b0": np.pi / 4,  # Bob 測定角度1
-            "theta_b1": -np.pi / 4,  # Bob 測定角度2
+            "theta_a0": 0,  # Alice measurement angle 1
+            "theta_a1": np.pi / 2,  # Alice measurement angle 2
+            "theta_b0": np.pi / 4,  # Bob measurement angle 1
+            "theta_b1": -np.pi / 4,  # Bob measurement angle 2
         }
 
         phase_range = np.linspace(0, 2 * np.pi, phase_points)
 
-        # 4測定組み合わせ
+        # 4-measurement combinations
         measurements = [
             (angles["theta_a0"], angles["theta_b0"]),  # ⟨A₀B₀⟩
             (angles["theta_a0"], angles["theta_b1"]),  # ⟨A₀B₁⟩
@@ -688,7 +688,7 @@ class CHSHExperiment(BaseExperiment):
                 else:
                     return device, None, circuit_idx, False
             except Exception as e:
-                # T1/Ramseyパターンに合わせたログ
+                # Logging matching T1/Ramsey pattern
                 phase_idx = circuit_idx // 4
                 meas_idx = circuit_idx % 4
                 print(
@@ -773,7 +773,7 @@ class CHSHExperiment(BaseExperiment):
                 else:
                     return device, None, circuit_idx, False
             except Exception as e:
-                # T1/Ramseyパターンに合わせたログ
+                # Logging matching T1/Ramsey pattern
                 phase_idx = circuit_idx // 4
                 meas_idx = circuit_idx % 4
                 print(

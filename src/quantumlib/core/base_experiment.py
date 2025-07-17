@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Base Experiment Class - 実験基底クラス
-すべての量子実験クラスの基底となるクラス
+Base Experiment Class - Base class for experiments
+Base class for all quantum experiment classes
 """
 
 import time
@@ -23,10 +23,10 @@ except ImportError:
 
 class BaseExperiment(ABC):
     """
-    量子実験の基底クラス
+    Base class for quantum experiments
 
-    すべての具体的な実験クラス（CHSHExperiment等）がこれを継承
-    共通機能：OQTOPUS接続、並列実行、データ管理
+    All concrete experiment classes (CHSHExperiment, etc.) inherit from this
+    Common functionality: OQTOPUS connection, parallel execution, data management
     """
 
     def __init__(
@@ -38,15 +38,15 @@ class BaseExperiment(ABC):
         Initialize base experiment
 
         Args:
-            experiment_name: 実験名
-            oqtopus_backend: OQTOPUSバックエンド（省略時は自動作成）
+            experiment_name: Experiment name
+            oqtopus_backend: OQTOPUS backend (auto-created if omitted)
         """
         self.experiment_name = (
             experiment_name or f"{self.__class__.__name__.lower()}_{int(time.time())}"
         )
         self.data_manager = SimpleDataManager(self.experiment_name)
 
-        # OQTOPUSバックエンド設定
+        # OQTOPUS backend configuration
         if oqtopus_backend:
             self.oqtopus_backend = oqtopus_backend
             self.oqtopus_available = True
@@ -55,7 +55,7 @@ class BaseExperiment(ABC):
             if OQTOPUS_AVAILABLE:
                 self.oqtopus_backend = OqtopusSamplingBackend()
 
-        # ローカルシミュレーター設定
+        # Local simulator configuration
         self.local_simulator = None
         try:
             from qiskit_aer import AerSimulator
@@ -65,7 +65,7 @@ class BaseExperiment(ABC):
         except ImportError:
             self.local_simulator_available = False
 
-        # デフォルトOQTOPUS設定
+        # Default OQTOPUS settings
         self.anemone_basis_gates = ["sx", "x", "rz", "cx"]
         self.transpiler_options = {
             "basis_gates": self.anemone_basis_gates,
@@ -75,7 +75,7 @@ class BaseExperiment(ABC):
             "ro_error_mitigation": "pseudo_inverse",
         }
 
-        # OQTOPUS用の内部構造
+        # Internal structure for OQTOPUS
         self.transpiler_info = {
             "transpiler_lib": "qiskit",
             "transpiler_options": self.transpiler_options,
@@ -92,18 +92,18 @@ class BaseExperiment(ABC):
         self, circuit: Any, shots: int, device_id: str
     ) -> str | None:
         """
-        単一回路をOQTOPUSに投入
+        Submit single circuit to OQTOPUS
         """
         if not self.oqtopus_available:
             print("OQTOPUS not available")
             return None
 
         try:
-            # QASM3生成
+            # Generate QASM3
             qasm_str = dumps(circuit)
             f"circuit_{int(time.time())}"
 
-            # 設定動的更新
+            # Dynamic configuration update
             self.transpiler_info["transpiler_options"] = self.transpiler_options
             self.mitigation_info = self.mitigation_options
 
@@ -123,7 +123,7 @@ class BaseExperiment(ABC):
 
     def run_circuit_locally(self, circuit: Any, shots: int) -> dict[str, Any] | None:
         """
-        ローカルシミュレーター実行
+        Run local simulator
         """
         if not self.local_simulator_available:
             return None
@@ -133,10 +133,10 @@ class BaseExperiment(ABC):
 
             from qiskit import transpile
 
-            # 回路のトランスパイル
+            # Transpile circuit
             compiled_circuit = transpile(circuit, self.local_simulator)
 
-            # シミュレーション実行
+            # Run simulation
             job = self.local_simulator.run(compiled_circuit, shots=shots)
             result = job.result()
             counts = result.get_counts()
@@ -163,7 +163,7 @@ class BaseExperiment(ABC):
         parallel_workers: int = 4,
     ) -> dict[str, list[str]]:
         """
-        複数回路を並列投入（改善版）
+        Submit multiple circuits in parallel (improved version)
         """
         print(
             f"Submitting {len(circuits)} circuits to {len(devices)} devices using {parallel_workers} workers"
@@ -196,7 +196,7 @@ class BaseExperiment(ABC):
                 return device, None
 
         with ThreadPoolExecutor(max_workers=parallel_workers) as executor:
-            # 順序を保持するために、futureとインデックスのペアを保存
+            # Store pairs of future and index to maintain order
             future_to_info = {}
             for device in devices:
                 for i, circuit in enumerate(circuits):
@@ -204,7 +204,7 @@ class BaseExperiment(ABC):
                     future_to_info[future] = (device, i)
                     submission_tasks.append(future)
 
-            # 結果を順序付きで収集
+            # Collect results in order
             device_results = {device: [None] * len(circuits) for device in devices}
             for future in as_completed(submission_tasks):
                 device, job_id = future.result()
@@ -212,14 +212,14 @@ class BaseExperiment(ABC):
                 if job_id:
                     device_results[original_device][original_index] = job_id
 
-            # 失敗したジョブにはプレースホルダーjob_idを設定
+            # Set placeholder job_id for failed jobs
             for device in devices:
                 final_job_ids = []
                 for i, job_id in enumerate(device_results[device]):
                     if job_id is not None:
                         final_job_ids.append(job_id)
                     else:
-                        # 失敗した場合はプレースホルダーjob_idを生成
+                        # Generate placeholder job_id for failed cases
                         failed_job_id = f"failed_{device}_{i}_{int(time.time())}"
                         final_job_ids.append(failed_job_id)
                 all_job_ids[device] = final_job_ids
@@ -233,7 +233,7 @@ class BaseExperiment(ABC):
         self, circuits: list[Any], devices: list[str] = ["qulacs"], shots: int = 1024
     ) -> dict[str, list[str]]:
         """
-        ローカルシミュレーター用の回路投入（即座に結果も取得）
+        Submit circuits for local simulator (also get results immediately)
         """
         print(f"Running {len(circuits)} circuits locally...")
 
@@ -248,7 +248,7 @@ class BaseExperiment(ABC):
                     job_id = result["job_id"]
                     device_jobs.append(job_id)
 
-                    # 結果を内部に保存（後でcollectで取得）
+                    # Save results internally (to be retrieved later with collect)
                     if not hasattr(self, "_local_results"):
                         self._local_results = {}
                     self._local_results[job_id] = result
@@ -257,11 +257,11 @@ class BaseExperiment(ABC):
                         f"Circuit {i + 1}/{len(circuits)} → {device}: {job_id} (local)"
                     )
                 else:
-                    # 失敗した場合はプレースホルダーjob_idを生成
+                    # Generate placeholder job_id for failed cases
                     failed_job_id = f"failed_{device}_{i}_{int(time.time())}"
                     device_jobs.append(failed_job_id)
 
-                    # 失敗結果もローカルに保存
+                    # Save failed results locally as well
                     if not hasattr(self, "_local_results"):
                         self._local_results = {}
                     self._local_results[failed_job_id] = {
@@ -282,9 +282,9 @@ class BaseExperiment(ABC):
         self, job_id: str, timeout_minutes: int = 30, verbose_log: bool = False
     ) -> dict[str, Any] | None:
         """
-        OQTOPUS結果取得（正しいジョブステータス取得対応）
+        Get OQTOPUS result (with proper job status retrieval)
         """
-        # 失敗したジョブのプレースホルダーの場合
+        # Case of failed job placeholder
         if job_id.startswith("failed_"):
             return {
                 "job_id": job_id,
@@ -293,7 +293,7 @@ class BaseExperiment(ABC):
                 "error": "Job submission failed",
             }
 
-        # ローカル結果が利用可能な場合
+        # Case where local results are available
         if hasattr(self, "_local_results") and job_id in self._local_results:
             return self._local_results[job_id]
 
@@ -303,7 +303,7 @@ class BaseExperiment(ABC):
         import time
 
         max_retries = 5
-        retry_delay = 2  # 初期待機時間（秒）
+        retry_delay = 2  # Initial wait time (seconds)
 
         for attempt in range(max_retries):
             try:
@@ -314,7 +314,7 @@ class BaseExperiment(ABC):
 
                 job = self.oqtopus_backend.retrieve_job(job_id)
 
-                # 正しいジョブステータス取得方法を使用
+                # Use proper job status retrieval method
                 try:
                     job_dict = job._job.to_dict()
                     status = job_dict.get("status", "unknown")
@@ -322,7 +322,7 @@ class BaseExperiment(ABC):
                     if verbose_log:
                         print(f"🔍 {job_id[:8]} status: {status}")
 
-                    # 成功状態の場合
+                    # Success state
                     if status == "succeeded":
                         try:
                             result = job.result()
@@ -341,7 +341,7 @@ class BaseExperiment(ABC):
                                     f"⚠️ Result extraction failed for {job_id[:8]}: {result_error}"
                                 )
 
-                    # 明確に失敗した場合は即座に終了
+                    # Exit immediately if clearly failed
                     elif status in ["failed", "cancelled", "error"]:
                         return {
                             "job_id": job_id,
@@ -350,7 +350,7 @@ class BaseExperiment(ABC):
                             "error": f"Job {status}",
                         }
 
-                    # ready状態の場合は結果取得を試行
+                    # Try to get result if in ready state
                     elif status == "ready":
                         try:
                             result = job.result()
@@ -369,10 +369,12 @@ class BaseExperiment(ABC):
                                     f"⚠️ Ready result extraction failed for {job_id[:8]}: {ready_error}"
                                 )
 
-                    # まだ処理中の状態（submitted, running, queued等）の場合
+                    # Still processing (submitted, running, queued, etc.)
                     elif status in ["submitted", "running", "queued", "pending"]:
-                        if attempt < max_retries - 1:  # 最後の試行でなければ待機
-                            wait_time = retry_delay * (2**attempt)  # 指数バックオフ
+                        if attempt < max_retries - 1:  # Wait if not the last attempt
+                            wait_time = retry_delay * (
+                                2**attempt
+                            )  # Exponential backoff
                             if verbose_log:
                                 print(
                                     f"⌛ Job {job_id[:8]} still {status}, waiting {wait_time}s..."
@@ -380,7 +382,7 @@ class BaseExperiment(ABC):
                             time.sleep(wait_time)
                             continue
                         else:
-                            # 最後の試行でも処理中の場合
+                            # Still processing even in the last attempt
                             return {
                                 "job_id": job_id,
                                 "status": status,
@@ -388,7 +390,7 @@ class BaseExperiment(ABC):
                                 "error": f"Job timeout in {status} state",
                             }
 
-                    # 不明な状態の場合
+                    # Unknown state
                     else:
                         if attempt < max_retries - 1:
                             wait_time = retry_delay
@@ -412,7 +414,7 @@ class BaseExperiment(ABC):
                             f"⚠️ Status check failed for {job_id[:8]} (attempt {attempt + 1}): {status_error}"
                         )
 
-                    # フォールバック: 旧式メソッドでresult取得を試行
+                    # Fallback: try to get result with legacy method
                     try:
                         result = job.result()
                         if result and hasattr(result, "counts"):
@@ -426,7 +428,7 @@ class BaseExperiment(ABC):
                     except Exception:
                         pass
 
-                    # 最後の試行でなければ待機してリトライ
+                    # Wait and retry if not the last attempt
                     if attempt < max_retries - 1:
                         time.sleep(retry_delay)
                         continue
@@ -437,12 +439,12 @@ class BaseExperiment(ABC):
                         f"❌ Result collection failed for {job_id[:8]} (attempt {attempt + 1}): {e}"
                     )
 
-                # 最後の試行でなければ待機してリトライ
+                # Wait and retry if not the last attempt
                 if attempt < max_retries - 1:
                     time.sleep(retry_delay)
                     continue
 
-        # 全ての試行が失敗した場合
+        # All attempts failed
         return {
             "job_id": job_id,
             "status": "timeout",
@@ -454,11 +456,11 @@ class BaseExperiment(ABC):
         self, job_ids: dict[str, list[str]], wait_minutes: int = 30
     ) -> dict[str, list[dict[str, Any]]]:
         """
-        結果を並列収集
+        Collect results in parallel
         """
         print(f"Collecting results from {len(job_ids)} devices...")
 
-        # ローカル結果が利用可能な場合の高速処理
+        # Fast processing when local results are available
         if hasattr(self, "_local_results"):
             print("Using local simulation results...")
             all_results = {}
@@ -481,7 +483,7 @@ class BaseExperiment(ABC):
             device, device_job_ids = device_data
             device_results = [None] * len(device_job_ids)
 
-            # 順序を保持するために、インデックスと一緒に結果を収集
+            # Collect results with index to maintain order
             for i, job_id in enumerate(device_job_ids):
                 result = self.get_oqtopus_result(job_id, wait_minutes, verbose_log=True)
                 if result and result.get("success", False):
@@ -491,12 +493,12 @@ class BaseExperiment(ABC):
                     status = result.get("status", "unknown") if result else "no_result"
                     print(f"❌ {device}: {job_id[:8]}... failed (status: {status})")
 
-            # 順序を保持するため、Noneもそのまま返す
+            # Return None as-is to maintain order
             return device, device_results
 
         all_results = {}
 
-        # 並列収集
+        # Parallel collection
         with ThreadPoolExecutor(max_workers=len(job_ids)) as executor:
             futures = [
                 executor.submit(collect_from_device, item) for item in job_ids.items()
@@ -509,34 +511,34 @@ class BaseExperiment(ABC):
 
         return all_results
 
-    # 抽象メソッド：各実験クラスで実装
+    # Abstract methods: implemented in each experiment class
     @abstractmethod
     def create_circuits(self, **kwargs) -> list[Any]:
-        """実験固有の回路作成（各実験クラスで実装）"""
+        """Experiment-specific circuit creation (implemented in each experiment class)"""
         pass
 
     @abstractmethod
     def analyze_results(
         self, results: dict[str, list[dict[str, Any]]], **kwargs
     ) -> dict[str, Any]:
-        """実験固有の結果解析（各実験クラスで実装）"""
+        """Experiment-specific result analysis (implemented in each experiment class)"""
         pass
 
     @abstractmethod
     def save_experiment_data(
         self, results: dict[str, Any], metadata: dict[str, Any] = None
     ) -> str:
-        """実験固有のデータ保存（各実験クラスで実装）"""
+        """Experiment-specific data saving (implemented in each experiment class)"""
         pass
 
-    # 共通保存メソッド
+    # Common save methods
     def save_job_ids(
         self,
         job_ids: dict[str, list[str]],
         metadata: dict[str, Any] = None,
         filename: str = "job_ids",
     ) -> str:
-        """ジョブID保存"""
+        """Save job IDs"""
         save_data = {
             "job_ids": job_ids,
             "submitted_at": time.time(),
@@ -556,7 +558,7 @@ class BaseExperiment(ABC):
         metadata: dict[str, Any] = None,
         filename: str = "raw_results",
     ) -> str:
-        """生結果保存"""
+        """Save raw results"""
         save_data = {
             "results": results,
             "saved_at": time.time(),
@@ -567,10 +569,10 @@ class BaseExperiment(ABC):
         return self.data_manager.save_data(save_data, filename)
 
     def save_experiment_summary(self) -> str:
-        """実験サマリー保存"""
+        """Save experiment summary"""
         return self.data_manager.summary()
 
-    # テンプレートメソッド：全体的な実験フロー
+    # Template method: overall experiment flow
     def run_experiment(
         self,
         devices: list[str] = ["qulacs"],
@@ -580,27 +582,27 @@ class BaseExperiment(ABC):
         **kwargs,
     ) -> dict[str, Any]:
         """
-        実験実行のテンプレートメソッド
-        各実験クラスでオーバーライド可能
+        Template method for experiment execution
+        Can be overridden in each experiment class
         """
         print(f"Running {self.__class__.__name__}")
 
-        # 1. 回路作成（実験固有）
+        # 1. Circuit creation (experiment-specific)
         circuits = self.create_circuits(**kwargs)
         print(f"Created {len(circuits)} circuits")
 
-        # 2. 並列投入
+        # 2. Parallel submission
         job_ids = self.submit_circuits_parallel(
             circuits, devices, shots, submit_interval
         )
 
-        # 3. 結果収集
+        # 3. Result collection
         raw_results = self.collect_results_parallel(job_ids, wait_minutes)
 
-        # 4. 結果解析（実験固有）
+        # 4. Result analysis (experiment-specific)
         analyzed_results = self.analyze_results(raw_results, **kwargs)
 
-        # 5. データ保存（実験固有）
+        # 5. Data saving (experiment-specific)
         save_path = self.save_experiment_data(analyzed_results)
 
         print(f"{self.__class__.__name__} completed")

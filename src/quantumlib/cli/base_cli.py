@@ -74,33 +74,33 @@ class BaseExperimentCLI(ABC):
             name=f"{experiment_name}-cli", help=help_text, rich_markup_mode="rich"
         )
 
-        # Run commandを追加
+        # Add run command
         self.app.command()(self.run)
         self.app.callback()(self.main)
 
     @abstractmethod
     def get_experiment_class(self):
-        """実験クラスを返す（サブクラスで実装）"""
+        """Return experiment class (implemented in subclasses)"""
         pass
 
     @abstractmethod
     def generate_circuits(self, experiment_instance: Any, **kwargs) -> tuple:
         """
-        回路生成（サブクラスで実装）
+        Circuit generation (implemented in subclasses)
 
         Returns:
-            (circuits, metadata) のタプル
+            (circuits, metadata) tuple
         """
         pass
 
     @abstractmethod
     def get_experiment_specific_options(self) -> dict[str, Any]:
-        """実験固有のオプション定義（サブクラスで実装）"""
+        """Define experiment-specific options (implemented in subclasses)"""
         pass
 
     @abstractmethod
     def create_experiment_config_display(self, **kwargs) -> str:
-        """実験設定表示用テキスト作成（サブクラスで実装）"""
+        """Create experiment configuration display text (implemented in subclasses)"""
         pass
 
     @abstractmethod
@@ -112,7 +112,7 @@ class BaseExperimentCLI(ABC):
         metadata: Any,
         **kwargs,
     ) -> dict:
-        """結果処理（サブクラスで実装）"""
+        """Process results (implemented in subclasses)"""
         pass
 
     def run_parallel_execution(
@@ -125,8 +125,8 @@ class BaseExperimentCLI(ABC):
         backend: ExperimentBackend,
     ) -> dict:
         """
-        Step 2: パラレル実行環境で回路を実行
-        全実験共通の実行ロジック
+        Step 2: Execute circuits in parallel execution environment
+        Common execution logic for all experiments
         """
         self.console.print("\\n🔧 Step 2: Parallel Execution Engine")
         self.console.print(f"   Backend: {backend.value}")
@@ -134,7 +134,7 @@ class BaseExperimentCLI(ABC):
         self.console.print(f"   Devices: {devices}")
         self.console.print(f"   Workers: {parallel_workers}")
 
-        # Backend に応じて実行環境を切り替え
+        # Switch execution environment according to backend
         if backend == ExperimentBackend.oqtopus:
             self.console.print("   → Using OQTOPUS backend")
             if not experiment_instance.oqtopus_available:
@@ -164,13 +164,13 @@ class BaseExperimentCLI(ABC):
         shots: int,
         parallel_workers: int,
     ) -> dict:
-        """OQTOPUS backend での並列実行"""
+        """Parallel execution with OQTOPUS backend"""
 
-        # T1実験の場合は専用の並列化実装を使用（プログレスバーなし）
+        # Use dedicated parallel implementation for T1 experiments (without progress bar)
         if hasattr(experiment_instance, "_submit_t1_circuits_parallel_with_order"):
             self.console.print("   → Using T1-specific parallel execution")
 
-            # プログレスバーなしの簡単なアプローチでスタック問題を回避
+            # Avoid stack issues with simple approach without progress bar
             self.console.print("   📊 Submitting T1 circuits...")
             job_data = experiment_instance._submit_t1_circuits_parallel_with_order(
                 circuits, devices, shots, parallel_workers
@@ -191,11 +191,11 @@ class BaseExperimentCLI(ABC):
 
             return raw_results
 
-        # Ramsey実験の場合は専用の並列化実装を使用（プログレスバーなし）
+        # Use dedicated parallel implementation for Ramsey experiments (without progress bar)
         if hasattr(experiment_instance, "_submit_ramsey_circuits_parallel_with_order"):
             self.console.print("   → Using Ramsey-specific parallel execution")
 
-            # プログレスバーなしの簡単なアプローチでスタック問題を回避
+            # Avoid stack issues with simple approach without progress bar
             self.console.print("   📊 Submitting Ramsey circuits...")
             job_data = experiment_instance._submit_ramsey_circuits_parallel_with_order(
                 circuits, devices, shots, parallel_workers
@@ -216,11 +216,11 @@ class BaseExperimentCLI(ABC):
 
             return raw_results
 
-        # T2 Echo実験の場合は専用の並列化実装を使用（プログレスバーなし）
+        # Use dedicated parallel implementation for T2 Echo experiments (without progress bar)
         if hasattr(experiment_instance, "_submit_t2_echo_circuits_parallel_with_order"):
             self.console.print("   → Using T2 Echo-specific parallel execution")
 
-            # プログレスバーなしの簡単なアプローチでスタック問題を回避
+            # Avoid stack issues with simple approach without progress bar
             self.console.print("   📊 Submitting T2 Echo circuits...")
             job_data = experiment_instance._submit_t2_echo_circuits_parallel_with_order(
                 circuits, devices, shots, parallel_workers
@@ -241,11 +241,11 @@ class BaseExperimentCLI(ABC):
 
             return raw_results
 
-        # CHSH実験の場合は専用の並列化実装を使用（プログレスバーなし）
+        # Use dedicated parallel implementation for CHSH experiments (without progress bar)
         if hasattr(experiment_instance, "_submit_chsh_circuits_parallel_with_order"):
             self.console.print("   → Using CHSH-specific parallel execution")
 
-            # プログレスバーなしの簡単なアプローチでスタック問題を回避
+            # Avoid stack issues with simple approach without progress bar
             self.console.print("   📊 Submitting CHSH circuits...")
             job_data = experiment_instance._submit_chsh_circuits_parallel_with_order(
                 circuits, devices, shots, parallel_workers
@@ -266,7 +266,7 @@ class BaseExperimentCLI(ABC):
 
             return raw_results
 
-        # 通常の並列実行（従来通り）
+        # Normal parallel execution (as usual)
         with Progress(
             SpinnerColumn(),
             TextColumn("[progress.description]{task.description}"),
@@ -305,7 +305,7 @@ class BaseExperimentCLI(ABC):
         shots: int,
         parallel_workers: int,
     ) -> dict:
-        """Local simulator での並列実行"""
+        """Parallel execution with local simulator"""
 
         with Progress(
             SpinnerColumn(),
@@ -346,7 +346,7 @@ class BaseExperimentCLI(ABC):
         **kwargs,
     ):
         """
-        共通実験実行ロジック
+        Common experiment execution logic
         """
 
         # Display configuration
@@ -361,7 +361,7 @@ class BaseExperimentCLI(ABC):
         )
 
         try:
-            # === Step 1: Experiment → 回路リスト作成 ===
+            # === Step 1: Experiment → Circuit list creation ===
             self.console.print(
                 f"\\n🔬 Step 1: Circuit Generation by {self.experiment_name}Experiment"
             )
@@ -370,28 +370,28 @@ class BaseExperimentCLI(ABC):
             experiment_instance = experiment_class(
                 experiment_name=experiment_name
                 or f"{self.experiment_name.lower()}_{int(time.time())}",
-                **kwargs,  # 実験固有の初期化パラメータを渡す
+                **kwargs,  # Pass experiment-specific initialization parameters
             )
 
-            # 実験固有の回路生成
+            # Experiment-specific circuit generation
             circuits, circuit_metadata = self.generate_circuits(
                 experiment_instance, **kwargs
             )
 
             self.console.print(f"   Generated: {len(circuits)} circuits")
 
-            # === Step 2: CLI → パラレル実行環境で実行 ===
+            # === Step 2: CLI → Execute in parallel execution environment ===
             backend_enum = ExperimentBackend(backend)
             raw_results = self.run_parallel_execution(
                 experiment_instance, circuits, devices, shots, parallel, backend_enum
             )
 
-            # === Step 3: Experiment → 結果解析・保存 ===
+            # === Step 3: Experiment → Result analysis and save ===
             self.console.print(
                 f"\\n📊 Step 3: Analysis & Save by {self.experiment_name}Experiment"
             )
 
-            # 実験固有の結果処理
+            # Experiment-specific result processing
             results = self.process_results(
                 experiment_instance,
                 raw_results,
@@ -401,19 +401,19 @@ class BaseExperimentCLI(ABC):
                 **kwargs,
             )
 
-            # 保存処理
+            # Save processing
             if not no_save:
                 self.console.print("   → Saving experiment data...")
                 experiment_instance.save_complete_experiment_data(results)
             elif not no_plot:
-                # データ保存なしでもプロット生成のみ実行
+                # Execute only plot generation even without data saving
                 self.console.print("   → Generating plot...")
                 plot_method = getattr(
                     experiment_instance, f"generate_{self.experiment_name.lower()}_plot"
                 )
                 plot_method(results, save_plot=True, show_plot=show_plot)
 
-            # 結果表示
+            # Display results
             self.console.print("   → Displaying results...")
             experiment_instance.display_results(results, use_rich=True)
 
@@ -429,15 +429,15 @@ class BaseExperimentCLI(ABC):
     @abstractmethod
     def main(self):
         """
-        CLI callback - サブクラスでオーバーライド可能
+        CLI callback - can be overridden in subclasses
         """
         pass
 
     @abstractmethod
     def run(self):
-        """実験実行コマンド - サブクラスで実装"""
+        """Experiment execution command - implemented in subclasses"""
         pass
 
     def start(self):
-        """CLI実行"""
+        """CLI execution"""
         self.app()

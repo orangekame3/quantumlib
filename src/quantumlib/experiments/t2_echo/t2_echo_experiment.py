@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-T2 Echo Experiment Class - T2 Echo実験専用クラス
-BaseExperimentを継承し、T2 Echo実験に特化した実装を提供
+T2 Echo Experiment Class - Specialized class for T2 Echo experiments
+Inherits from BaseExperiment and provides T2 Echo experiment-specific implementation
 """
 
 import time
@@ -15,13 +15,13 @@ from ...core.base_experiment import BaseExperiment
 
 class T2EchoExperiment(BaseExperiment):
     """
-    T2 Echo実験クラス（Hahn Echo/CPMG）
+    T2 Echo experiment class (Hahn Echo/CPMG)
 
-    特化機能:
-    - T2 Echo回路の自動生成（Hahn Echo、CPMG）
-    - エコー減衰フィッティング
-    - 遅延時間スキャン実験
-    - T2時定数推定
+    Specialized features:
+    - Automatic T2 Echo circuit generation (Hahn Echo, CPMG)
+    - Echo decay fitting
+    - Delay time scan experiments
+    - T2 time constant estimation
     """
 
     def __init__(
@@ -32,7 +32,7 @@ class T2EchoExperiment(BaseExperiment):
         num_echoes: int = 1,
         **kwargs,
     ):
-        # T2 Echo実験固有のパラメータを抽出（BaseExperimentには渡さない）
+        # Extract T2 Echo experiment-specific parameters (not passed to BaseExperiment)
         t2_echo_specific_params = {
             "delay_points",
             "max_delay",
@@ -42,20 +42,20 @@ class T2EchoExperiment(BaseExperiment):
             "num_echoes",
         }
 
-        # BaseExperimentに渡すkwargsをフィルタリング
+        # Filter kwargs to pass to BaseExperiment
         base_kwargs = {
             k: v for k, v in kwargs.items() if k not in t2_echo_specific_params
         }
 
         super().__init__(experiment_name, **base_kwargs)
 
-        # T2 Echo実験固有の設定
-        self.expected_t2 = 10000  # 初期推定値 [ns] - T2はT2*より長い
-        self.enable_fitting = enable_fitting  # フィッティング有効化フラグ
+        # T2 Echo experiment-specific settings
+        self.expected_t2 = 10000  # Initial estimate [ns] - T2 is longer than T2*
+        self.enable_fitting = enable_fitting  # Fitting enable flag
         self.echo_type = echo_type  # "hahn" or "cpmg"
-        self.num_echoes = num_echoes  # エコー数（CPMGの場合）
+        self.num_echoes = num_echoes  # Number of echoes (for CPMG)
 
-        # T2 Echo実験ではreadout mitigationを有効化
+        # Enable readout mitigation for T2 Echo experiments
         self.mitigation_options = {"ro_error_mitigation": "pseudo_inverse"}
         self.mitigation_info = self.mitigation_options
 
@@ -70,33 +70,33 @@ class T2EchoExperiment(BaseExperiment):
 
     def create_circuits(self, **kwargs) -> list[Any]:
         """
-        T2 Echo実験回路作成
+        Create T2 Echo experiment circuits
 
         Args:
-            delay_points: 遅延時間点数 (default: 51)
-            max_delay: 最大遅延時間 [ns] (default: 500000)
-            echo_type: エコータイプ "hahn" or "cpmg" (default: "hahn")
-            num_echoes: エコー数 (default: 1)
-            delay_times: 直接指定する遅延時間リスト [ns] (optional)
+            delay_points: Number of delay time points (default: 51)
+            max_delay: Maximum delay time [ns] (default: 500000)
+            echo_type: Echo type "hahn" or "cpmg" (default: "hahn")
+            num_echoes: Number of echoes (default: 1)
+            delay_times: Directly specified delay time list [ns] (optional)
 
         Returns:
-            T2 Echo回路リスト
+            T2 Echo circuit list
         """
         delay_points = kwargs.get("delay_points", 51)
-        max_delay = kwargs.get("max_delay", 500000)  # T2測定はより長時間
+        max_delay = kwargs.get("max_delay", 500000)  # T2 measurement requires longer times
         echo_type = kwargs.get("echo_type", self.echo_type)
         num_echoes = kwargs.get("num_echoes", self.num_echoes)
 
-        # 遅延時間範囲
+        # Delay time range
         if "delay_times" in kwargs:
             delay_times = np.array(kwargs["delay_times"])
         else:
-            # デフォルト: 100ns〜500μsの対数スケールで51点
+            # Default: 51 points on logarithmic scale from 100ns to 500μs
             delay_times = np.logspace(np.log10(100), np.log10(500 * 1000), num=51)
             if delay_points != 51:
                 delay_times = np.linspace(100, max_delay, delay_points)
 
-        # メタデータ保存
+        # Save metadata
         self.experiment_params = {
             "delay_times": delay_times.tolist(),
             "delay_points": len(delay_times),
@@ -105,7 +105,7 @@ class T2EchoExperiment(BaseExperiment):
             "num_echoes": num_echoes,
         }
 
-        # T2 Echo回路作成
+        # Create T2 Echo circuits
         circuits = []
         for delay_time in delay_times:
             circuit = self._create_single_t2_echo_circuit(
@@ -128,7 +128,7 @@ class T2EchoExperiment(BaseExperiment):
         verbose_log: bool = False,
     ) -> dict[str, Any]:
         """
-        T2 Echo実験を並列実行（T1/Ramseyパターンを踏襲）
+        Execute T2 Echo experiment in parallel (following T1/Ramsey pattern)
         """
         print(f"🧪 T2 Echo Experiment: {self.echo_type.upper()} echo")
         print(f"   Echo count: {self.num_echoes}")
@@ -136,20 +136,20 @@ class T2EchoExperiment(BaseExperiment):
         print(f"   Shots: {shots}")
         print(f"   Workers: {parallel_workers}")
 
-        # 1. 回路作成
+        # 1. Create circuits
         circuits = self.create_circuits()
 
-        # 2. 並列投入
+        # 2. Parallel submission
         job_data = self._submit_t2_echo_circuits_parallel_with_order(
             circuits, devices, shots, parallel_workers
         )
 
-        # 3. 結果収集
+        # 3. Collect results
         raw_results = self._collect_t2_echo_results_parallel_with_order(
             job_data, parallel_workers, verbose_log
         )
 
-        # 4. 解析
+        # 4. Analysis
         analysis = self.analyze_results(raw_results)
 
         return {
@@ -162,7 +162,7 @@ class T2EchoExperiment(BaseExperiment):
     def _submit_t2_echo_circuits_parallel_with_order(
         self, circuits: list[Any], devices: list[str], shots: int, parallel_workers: int
     ) -> dict[str, list[dict]]:
-        """T2 Echo特化並列投入（順序保持）"""
+        """T2 Echo specialized parallel submission (preserving order)"""
         print(f"Enhanced T2 Echo parallel submission: {parallel_workers} workers")
 
         all_job_data = {}
@@ -200,7 +200,7 @@ class T2EchoExperiment(BaseExperiment):
                     "error": str(e),
                 }
 
-        # 並列投入実行
+        # Execute parallel submission
         with ThreadPoolExecutor(max_workers=parallel_workers) as executor:
             submission_args = []
             for device in devices:
@@ -220,7 +220,7 @@ class T2EchoExperiment(BaseExperiment):
                 if result["success"]:
                     all_job_data[result["device"]].append(result)
 
-        # 順序でソート
+        # Sort by order
         for device in devices:
             all_job_data[device].sort(key=lambda x: x["circuit_index"])
             successful_jobs = [job for job in all_job_data[device] if job["success"]]
@@ -236,7 +236,7 @@ class T2EchoExperiment(BaseExperiment):
         parallel_workers: int,
         verbose_log: bool = False,
     ) -> dict[str, list[dict]]:
-        """T2 Echo特化結果収集（順序保持）"""
+        """T2 Echo specialized result collection (preserving order)"""
         total_jobs = sum(len(device_jobs) for device_jobs in job_data.values())
         print(
             f"📊 Starting T2 Echo results collection: {total_jobs} jobs from {len(job_data)} devices"
@@ -249,19 +249,19 @@ class T2EchoExperiment(BaseExperiment):
         for device, device_job_data in job_data.items():
             device_results = []
 
-            # 順序を保持するために circuit_index でソート
+            # Sort by circuit_index to preserve order
             sorted_jobs = sorted(device_job_data, key=lambda x: x["circuit_index"])
 
             for job_info in sorted_jobs:
                 if not job_info["success"]:
-                    device_results.append(None)  # 失敗したジョブは None で埋める
+                    device_results.append(None)  # Fill failed jobs with None
                     continue
 
                 job_id = job_info["job_id"]
                 circuit_index = job_info["circuit_index"]
                 delay_time = job_info["delay_time"]
 
-                # ジョブ完了までポーリング
+                # Poll until job completion
                 result = self._poll_job_until_completion(job_id, verbose_log)
                 completed_count += 1
 
@@ -279,7 +279,7 @@ class T2EchoExperiment(BaseExperiment):
                         f"⚠️ {device}[{circuit_index}] (τ={delay_time:.0f}ns): {job_id[:8]}... failed"
                     )
 
-                # 進捗表示
+                # Progress display
                 if completed_count % 10 == 0 or completed_count == total_jobs:
                     success_rate = (successful_count / completed_count) * 100
                     print(
@@ -288,7 +288,7 @@ class T2EchoExperiment(BaseExperiment):
 
             all_results[device] = device_results
 
-            # デバイス毎の成功率
+            # Success rate per device
             device_successful = len([r for r in device_results if r is not None])
             device_total = len(device_results)
             success_rate = (
@@ -310,8 +310,8 @@ class T2EchoExperiment(BaseExperiment):
     def _poll_job_until_completion(
         self, job_id: str, verbose_log: bool = False, max_wait_minutes: int = 30
     ) -> dict[str, Any] | None:
-        """ジョブ完了までポーリング"""
-        max_attempts = max_wait_minutes * 12  # 5秒間隔で30分
+        """Poll until job completion"""
+        max_attempts = max_wait_minutes * 12  # 5-second intervals for 30 minutes
 
         for attempt in range(max_attempts):
             result = self.get_oqtopus_result(
@@ -329,28 +329,28 @@ class T2EchoExperiment(BaseExperiment):
             elif status == "failed":
                 return {"success": False, "status": "failed", "job_id": job_id}
             elif status in ["running", "submitted"]:
-                if verbose_log and attempt % 6 == 0:  # 30秒毎にログ
+                if verbose_log and attempt % 6 == 0:  # Log every 30 seconds
                     print(f"⏳ {job_id[:8]}... {status}")
                 time.sleep(5)
                 continue
             else:
-                # 不明なステータス
+                # Unknown status
                 time.sleep(5)
                 continue
 
-        # タイムアウト
+        # Timeout
         return {"success": False, "status": "timeout", "job_id": job_id}
 
     def _create_single_t2_echo_circuit(
         self, delay_time: float, echo_type: str = "hahn", num_echoes: int = 1
     ) -> Any:
         """
-        単一T2 Echo回路作成
+        Create single T2 Echo circuit
 
         Args:
-            delay_time: 全遅延時間 [ns]
-            echo_type: "hahn" または "cpmg"
-            num_echoes: エコー数
+            delay_time: Total delay time [ns]
+            echo_type: "hahn" or "cpmg"
+            num_echoes: Number of echoes
         """
         try:
             from qiskit import QuantumCircuit

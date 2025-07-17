@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Simple Data Manager for QuantumLib Project
-シンプルで統一されたデータ保存システム
+Simple and unified data storage system
 """
 
 import json
@@ -14,7 +14,7 @@ import matplotlib.pyplot as plt
 
 class SimpleDataManager:
     """
-    シンプルなデータ管理システム
+    Simple data management system
     """
 
     def __init__(self, experiment_name: str | None = None):
@@ -22,17 +22,17 @@ class SimpleDataManager:
         Initialize simple data manager
 
         Args:
-            experiment_name: 実験名（省略時は自動生成）
+            experiment_name: Experiment name (auto-generated if omitted)
         """
         self.timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
         if experiment_name is None:
             experiment_name = f"exp_{self.timestamp}"
 
-        # シンプルなディレクトリ構造 (.results はgitignoreで除外)
+        # Simple directory structure (.results is excluded by gitignore)
         self.session_dir = f".results/{experiment_name}_{self.timestamp}"
 
-        # 必要最小限のディレクトリ作成
+        # Create minimum necessary directories
         os.makedirs(f"{self.session_dir}/plots", exist_ok=True)
         os.makedirs(f"{self.session_dir}/data", exist_ok=True)
 
@@ -41,15 +41,15 @@ class SimpleDataManager:
 
     def save_plot(self, fig, name: str, formats: list[str] = ["png"]) -> str | None:
         """
-        プロット保存
+        Save plot
 
         Args:
             fig: matplotlib figure
-            name: ファイル名
-            formats: 保存形式
+            name: File name
+            formats: Save formats
 
         Returns:
-            保存パス
+            Save path
         """
         saved_files: list = []
         for fmt in formats:
@@ -64,19 +64,19 @@ class SimpleDataManager:
 
     def save_data(self, data: dict[str, Any], name: str) -> str:
         """
-        データ保存（JSON固定）
+        Save data (JSON format)
 
         Args:
-            data: 保存データ
-            name: ファイル名
+            data: Data to save
+            name: File name
 
         Returns:
-            保存パス
+            Save path
         """
         filename = f"{name}_{self.timestamp}.json"
         path = f"{self.session_dir}/data/{filename}"
 
-        # numpy対応のJSON保存
+        # JSON save with numpy support
         json_data = self._convert_for_json(data)
         with open(path, "w", encoding="utf-8") as f:
             json.dump(json_data, f, indent=2, ensure_ascii=False)
@@ -87,10 +87,10 @@ class SimpleDataManager:
 
     def summary(self) -> str:
         """
-        セッション要約作成
+        Create session summary
 
         Returns:
-            要約ファイルパス
+            Summary file path
         """
         summary = {
             "session_dir": self.session_dir,
@@ -107,7 +107,7 @@ class SimpleDataManager:
         return path
 
     def _convert_for_json(self, obj):
-        """JSON変換用ヘルパー"""
+        """Helper for JSON conversion"""
         if isinstance(obj, dict):
             return {k: self._convert_for_json(v) for k, v in obj.items()}
         elif isinstance(obj, list):
@@ -124,16 +124,16 @@ def main():
     """Demo"""
     manager = SimpleDataManager("demo")
 
-    # プロット保存
+    # Save plot
     fig, ax = plt.subplots()
     ax.plot([1, 2, 3], [1, 4, 2])
     manager.save_plot(fig, "test_plot")
 
-    # データ保存
+    # Save data
     data = {"results": [1, 2, 3], "config": {"shots": 1000}}
     manager.save_data(data, "test_data")
 
-    # 要約作成
+    # Create summary
     manager.summary()
 
     print("✅ Demo completed!")

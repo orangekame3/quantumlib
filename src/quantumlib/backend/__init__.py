@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Backend module - バックエンド実装
+Backend module - Backend implementation
 """
 
 from .oqtopus import QuantumExperimentSimple

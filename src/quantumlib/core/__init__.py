@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Core module - 基底クラスとコア機能
+Core module - Base classes and core functionality
 """
 
 from .base_experiment import BaseExperiment
