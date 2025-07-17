@@ -153,18 +153,18 @@ This project features a parallel job submission and aggregation function, the ar
 
 ```mermaid
 graph TD
-    A[CLI Interface (Typer)] --> B[Select Experiment Type]
-    B --> C[Instantiate Experiment Class]
-    C --> D[Generate Quantum Circuits]
-    D --> E{Choose Execution Backend}
-    E --> F[Local Simulator]
-    E --> G[OQTOPUS Backend]
-    F --> H[Run in ThreadPoolExecutor]
-    G --> I[Submit to OQTOPUS]
-    H --> J[Collect Results]
-    I --> J
-    J --> K[Analyze & Visualize]
-
+    A[CLI Interface Typer] --> B{Experiment Type};
+    B --> C[Experiment Class];
+    C --> D[Circuit Generation];
+    D --> E{Execution Backend};
+    E --> F[Local Simulator];
+    E --> G[OQTOPUS Backend];
+    F --> H[Parallel Execution (ThreadPoolExecutor)];
+    G --> H;
+    H --> I[Job Submission];
+    I --> J[OQTOPUS];
+    J --> K[Result Aggregation];
+    K --> L[Analysis & Visualization];
 ```
 
 1. **CLI Interface (`base_cli.py`)**:
