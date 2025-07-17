@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """
-T2 Echo CLI - QuantumLib T2 Echo実験（Hahn Echo/CPMG）
+T2 Echo CLI - QuantumLib T2 Echo Experiment (Hahn Echo/CPMG)
 """
+
 from typing import Annotated, Any
 
 import numpy as np
@@ -26,20 +27,21 @@ from quantumlib.experiments.t2_echo.t2_echo_experiment import T2EchoExperiment
 
 class T2EchoExperimentCLI(BaseExperimentCLI):
     """
-    T2 Echo実験専用CLI（QuantumLib統合フレームワーク使用）
+    T2 Echo experiment dedicated CLI (using QuantumLib integrated framework)
     """
 
     def __init__(self):
         super().__init__(
-            experiment_name="T2Echo", help_text="QuantumLib T2 Echo Experiment (Hahn Echo/CPMG)"
+            experiment_name="T2Echo",
+            help_text="QuantumLib T2 Echo Experiment (Hahn Echo/CPMG)",
         )
 
     def get_experiment_class(self):
-        """T2 Echo実験クラスを返す"""
+        """Returns the T2 Echo experiment class"""
         return T2EchoExperiment
 
     def get_experiment_specific_options(self) -> dict[str, Any]:
-        """T2 Echo実験固有のオプション"""
+        """T2 Echo experiment specific options"""
         return {
             "delay_points": 51,
             "max_delay": 500000,  # 500μs
@@ -48,7 +50,7 @@ class T2EchoExperimentCLI(BaseExperimentCLI):
         }
 
     def create_experiment_config_display(self, **kwargs) -> str:
-        """T2 Echo実験設定表示"""
+        """T2 Echo experiment configuration display"""
         devices = kwargs.get("devices", ["qulacs"])
         backend = kwargs.get("backend", "local_simulator")
         shots = kwargs.get("shots", 1000)
@@ -62,7 +64,7 @@ class T2EchoExperimentCLI(BaseExperimentCLI):
             f"Devices: {', '.join(devices)}\\n"
             f"Backend: {backend}\\n"
             f"Shots: {shots:,} per delay | Points: {delay_points}\\n"
-            f"Max Delay: {max_delay/1000:.1f} μs | Echo: {echo_type.upper()}\\n"
+            f"Max Delay: {max_delay / 1000:.1f} μs | Echo: {echo_type.upper()}\\n"
             f"Echo Count: {num_echoes} | Parallel: {parallel} threads\\n"
             f"Total measurements: {delay_points} delay points"
         )
@@ -70,13 +72,13 @@ class T2EchoExperimentCLI(BaseExperimentCLI):
     def generate_circuits(
         self, experiment_instance: T2EchoExperiment, **kwargs
     ) -> tuple[list[Any], dict]:
-        """T2 Echo回路生成"""
+        """T2 Echo circuit generation"""
         delay_points = kwargs.get("delay_points", 51)
         max_delay = kwargs.get("max_delay", 500000)
         echo_type = kwargs.get("echo_type", "hahn")
         num_echoes = kwargs.get("num_echoes", 1)
 
-        # デフォルトの遅延時間設定
+        # Default delay time configuration
         delay_times = np.logspace(np.log10(100), np.log10(500 * 1000), num=51)
 
         circuits = experiment_instance.create_circuits(
@@ -108,7 +110,7 @@ class T2EchoExperimentCLI(BaseExperimentCLI):
         metadata: Any,
         **kwargs,
     ) -> dict:
-        """T2 Echo結果処理"""
+        """T2 Echo result processing"""
         delay_times = metadata["delay_times"]
         max_delay = metadata["max_delay"]
         delay_points = metadata["delay_points"]
@@ -118,7 +120,7 @@ class T2EchoExperimentCLI(BaseExperimentCLI):
         self.console.print("   → Analyzing T2 Echo decay...")
         analysis = experiment_instance.analyze_results(raw_results)
 
-        # experiment_params設定（保存用）
+        # experiment_params configuration (for saving)
         experiment_instance.experiment_params = {
             "delay_times": delay_times.tolist(),
             "max_delay": max_delay,
@@ -164,7 +166,7 @@ class T2EchoExperimentCLI(BaseExperimentCLI):
         """
         Run T2 Echo experiment (Hahn Echo/CPMG)
         """
-        # フレームワークの共通実行ロジックを呼び出し
+        # Call framework's common execution logic
         self._execute_experiment(
             devices=[d.value for d in devices],
             shots=shots,
@@ -175,15 +177,15 @@ class T2EchoExperimentCLI(BaseExperimentCLI):
             no_plot=no_plot,
             show_plot=show_plot,
             verbose=verbose,
-            delay_points=delay_points,  # T2 Echo固有オプション
-            max_delay=max_delay,  # T2 Echo固有オプション
-            echo_type=echo_type,  # T2 Echo固有オプション
-            num_echoes=num_echoes,  # T2 Echo固有オプション
-            enable_fitting=enable_fitting,  # フィッティング有効化オプション
+            delay_points=delay_points,  # T2 Echo specific option
+            max_delay=max_delay,  # T2 Echo specific option
+            echo_type=echo_type,  # T2 Echo specific option
+            num_echoes=num_echoes,  # T2 Echo specific option
+            enable_fitting=enable_fitting,  # Fitting enable option
         )
 
 
-# CLIインスタンス作成と実行
+# CLI instance creation and execution
 def main():
     cli = T2EchoExperimentCLI()
     cli.start()

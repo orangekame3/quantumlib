@@ -5,4 +5,4 @@ Ramsey experiment module
 
 from .ramsey_experiment import RamseyExperiment
 
-__all__ = ['RamseyExperiment']
+__all__ = ["RamseyExperiment"]

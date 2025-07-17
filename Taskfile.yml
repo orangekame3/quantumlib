@@ -1,0 +1,21 @@
+version: '3'
+
+tasks:
+  fmt:
+    cmds:
+      - uv run ruff check --fix src workspace
+      - uv run ruff check --fix --unsafe-fixes src workspace
+      - uv run ruff format src workspace
+      - uv run black src workspace
+    desc: "Auto-fix lint issues and format code"
+
+  lint:
+    cmds:
+      - uv run ruff check src workspace
+    desc: "Check code with ruff"
+
+  check:
+    cmds:
+      - task: fmt
+      - task: lint
+    desc: "Run all fixes and checks"

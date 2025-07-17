@@ -6,8 +6,8 @@ OQTOPUSバックエンドがユーザーに見える、実用的な設計
 
 import numpy as np
 
-from ..circuit.factory import create_chsh_circuit
 from ..backend.oqtopus import QuantumExperimentSimple
+from ..circuit.factory import create_chsh_circuit
 
 
 def my_experiment_oqtopus():
@@ -30,17 +30,19 @@ def my_experiment_oqtopus():
 
     # 回路作成（circuit_factory使用）
     circuits = []
-    params = [(0, np.pi/4), (np.pi/4, 0)]
+    params = [(0, np.pi / 4), (np.pi / 4, 0)]
 
     print("\n🔧 Creating circuits:")
     for theta_a, theta_b in params:
         circuit = create_chsh_circuit(theta_a, theta_b, phase_phi=0)
         circuits.append(circuit)
-        print(f"  Circuit: θ_A={theta_a:.3f}, θ_B={theta_b:.3f} | "
-              f"Depth: {circuit.depth()}")
+        print(
+            f"  Circuit: θ_A={theta_a:.3f}, θ_B={theta_b:.3f} | "
+            f"Depth: {circuit.depth()}"
+        )
 
     # OQTOPUS並列実行
-    devices = ['qulacs']  # 実環境では ['qulacs', 'anemone']
+    devices = ["qulacs"]  # 実環境では ['qulacs', 'anemone']
     print(f"\n🚀 Running on OQTOPUS: {devices}")
 
     job_ids = exp.submit_circuits_parallel(circuits, devices, shots=500)
@@ -48,7 +50,7 @@ def my_experiment_oqtopus():
 
     # 保存
     if results:
-        exp.save_results(results, {'experiment_type': 'basic_oqtopus'})
+        exp.save_results(results, {"experiment_type": "basic_oqtopus"})
         print("✅ Results saved")
 
     print(f"✅ OQTOPUS experiment completed: {len(results)} device results")
@@ -74,22 +76,23 @@ def my_custom_oqtopus_backend():
 
         # カスタム設定（直接編集）
         exp.anemone_basis_gates = ["sx", "x", "rz", "cx", "ry"]  # 追加ゲート
-        exp.transpiler_options.update({
-            "basis_gates": exp.anemone_basis_gates,
-            "optimization_level": 3,
-            "routing_method": "sabre",
-            "layout_method": "dense"
-        })
-        exp.mitigation_options.update({
-            "ro_error_mitigation": "pseudo_inverse",
-            "calibration_method": "standard"
-        })
+        exp.transpiler_options.update(
+            {
+                "basis_gates": exp.anemone_basis_gates,
+                "optimization_level": 3,
+                "routing_method": "sabre",
+                "layout_method": "dense",
+            }
+        )
+        exp.mitigation_options.update(
+            {"ro_error_mitigation": "pseudo_inverse", "calibration_method": "standard"}
+        )
 
         print("✅ Custom OQTOPUS backend configured")
 
         # 実験実行
-        circuit = create_chsh_circuit(0, np.pi/4, 0)
-        job_ids = exp.submit_circuits_parallel([circuit], ['qulacs'], shots=100)
+        circuit = create_chsh_circuit(0, np.pi / 4, 0)
+        job_ids = exp.submit_circuits_parallel([circuit], ["qulacs"], shots=100)
         results = exp.collect_results_parallel(job_ids)
 
         return exp, results
@@ -115,25 +118,25 @@ def my_phase_scan_oqtopus():
 
     print("🔧 Creating phase scan circuits:")
     for phase in phases:
-        circuit = create_chsh_circuit(0, np.pi/4, phase_phi=phase)
+        circuit = create_chsh_circuit(0, np.pi / 4, phase_phi=phase)
         circuits.append(circuit)
         expected_s = 2 * np.sqrt(2) * np.cos(phase)
         print(f"  φ={phase:.3f}, Expected S={expected_s:.2f}")
 
     # OQTOPUS実行
-    devices = ['qulacs']
+    devices = ["qulacs"]
     job_ids = exp.submit_circuits_parallel(circuits, devices, shots=300)
     results = exp.collect_results_parallel(job_ids)
 
     # 自動保存（Bell違反期待時）
-    expected_violations = sum(1 for p in phases if abs(np.cos(p)) > 1/np.sqrt(2))
+    expected_violations = sum(1 for p in phases if abs(np.cos(p)) > 1 / np.sqrt(2))
     if results and expected_violations > 0:
         metadata = {
-            'phase_scan': True,
-            'expected_violations': expected_violations,
-            'oqtopus_used': exp.oqtopus_available
+            "phase_scan": True,
+            "expected_violations": expected_violations,
+            "oqtopus_used": exp.oqtopus_available,
         }
-        exp.save_results(results, metadata, 'oqtopus_phase_scan')
+        exp.save_results(results, metadata, "oqtopus_phase_scan")
         print(f"✅ Phase scan saved (violations expected: {expected_violations})")
 
     return exp, results
@@ -149,11 +152,11 @@ def direct_oqtopus_usage():
     exp = QuantumExperimentSimple("direct_oqtopus")
 
     # 回路作成
-    circuit = create_chsh_circuit(0, np.pi/4, 0)
+    circuit = create_chsh_circuit(0, np.pi / 4, 0)
 
     # 直接OQTOPUS投入（ユーザーが見える）
     print("🚀 Direct OQTOPUS submission:")
-    job_id = exp.submit_circuit_to_oqtopus(circuit, shots=200, device_id='qulacs')
+    job_id = exp.submit_circuit_to_oqtopus(circuit, shots=200, device_id="qulacs")
 
     if job_id:
         print(f"✅ Job submitted: {job_id}")
@@ -164,7 +167,7 @@ def direct_oqtopus_usage():
             print(f"✅ Result collected: {result.get('success', False)}")
 
             # 手動保存
-            exp.save_results({'direct_result': result}, filename='direct_oqtopus')
+            exp.save_results({"direct_result": result}, filename="direct_oqtopus")
 
     return exp
 
@@ -188,9 +191,9 @@ def main():
     # 直接OQTOPUS使用
     exp4 = direct_oqtopus_usage()
 
-    print("\n" + "="*45)
+    print("\n" + "=" * 45)
     print("🎯 All OQTOPUS experiments completed!")
-    print("="*45)
+    print("=" * 45)
 
     # OQTOPUS設計の利点
     print("\n🏗️ OQTOPUS-Based Design Benefits:")

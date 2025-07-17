@@ -5,4 +5,4 @@ Rabi Experiment Module
 
 from .rabi_experiment import RabiExperiment
 
-__all__ = ['RabiExperiment']
+__all__ = ["RabiExperiment"]

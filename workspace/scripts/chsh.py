@@ -2,6 +2,7 @@
 """
 CHSH CLI - QuantumLib CHSH Bell Inequality Experiment
 """
+
 from typing import Annotated, Any
 
 import numpy as np
@@ -27,7 +28,7 @@ from quantumlib.experiments.chsh.chsh_experiment import CHSHExperiment
 
 class CHSHExperimentCLI(BaseExperimentCLI):
     """
-    CHSH実験専用CLI（QuantumLib統合フレームワーク使用）
+    CHSH experiment dedicated CLI (using QuantumLib integrated framework)
     """
 
     def __init__(self):
@@ -37,11 +38,11 @@ class CHSHExperimentCLI(BaseExperimentCLI):
         )
 
     def get_experiment_class(self):
-        """CHSH実験クラスを返す"""
+        """Returns the CHSH experiment class"""
         return CHSHExperiment
 
     def create_experiment_config_display(self, **kwargs) -> str:
-        """CHSH実験設定表示"""
+        """CHSH experiment configuration display"""
         devices = kwargs.get("devices", ["qulacs"])
         backend = kwargs.get("backend", "local_simulator")
         shots = kwargs.get("shots", 1000)
@@ -59,10 +60,10 @@ class CHSHExperimentCLI(BaseExperimentCLI):
     def generate_circuits(
         self, experiment_instance: CHSHExperiment, **kwargs
     ) -> tuple[list[Any], dict]:
-        """CHSH回路生成"""
+        """CHSH circuit generation"""
         points = kwargs.get("points", 20)
 
-        # 4測定CHSH用の回路とメタデータを生成
+        # Generate circuits and metadata for 4-measurement CHSH
         phase_range = np.linspace(0, 2 * np.pi, points)
         angles = {
             "theta_a0": 0,
@@ -111,7 +112,7 @@ class CHSHExperimentCLI(BaseExperimentCLI):
         metadata: Any,
         **kwargs,
     ) -> dict:
-        """CHSH結果処理"""
+        """CHSH result processing"""
         device_list = kwargs.get("device_list", ["qulacs"])
 
         circuit_metadata = metadata["circuit_metadata"]
@@ -129,7 +130,7 @@ class CHSHExperimentCLI(BaseExperimentCLI):
             phase_range, processed_results, angles
         )
 
-        # experiment_params設定（保存用）
+        # experiment_params configuration (for saving)
         experiment_instance.experiment_params = {
             "theta_a": 0,
             "theta_b": np.pi / 4,
@@ -145,9 +146,9 @@ class CHSHExperimentCLI(BaseExperimentCLI):
         }
 
     def get_experiment_specific_options(self) -> dict[str, Any]:
-        """CHSH実験固有のオプション"""
+        """CHSH experiment specific options"""
         return {
-            "points": 20,  # デフォルト位相点数
+            "points": 20,  # Default phase points
         }
 
     def run(
@@ -168,7 +169,7 @@ class CHSHExperimentCLI(BaseExperimentCLI):
         """
         Run CHSH Bell inequality experiment
         """
-        # フレームワークの共通実行ロジックを呼び出し
+        # Call framework's common execution logic
         self._execute_experiment(
             devices=[d.value for d in devices],
             shots=shots,
@@ -179,11 +180,11 @@ class CHSHExperimentCLI(BaseExperimentCLI):
             no_plot=no_plot,
             show_plot=show_plot,
             verbose=verbose,
-            points=points,  # CHSH固有オプション
+            points=points,  # CHSH specific option
         )
 
 
-# CLIインスタンス作成と実行
+# CLI instance creation and execution
 def main():
     cli = CHSHExperimentCLI()
     cli.start()

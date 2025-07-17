@@ -3,13 +3,12 @@
 CHSH Circuit Factory - CHSH実験専用回路作成
 """
 
-from typing import Any, Dict
-
-import numpy as np
+from typing import Any
 
 # Qiskitのみに依存（OQTOPUS非依存）
 try:
     from qiskit import ClassicalRegister, QuantumCircuit, QuantumRegister
+
     QISKIT_AVAILABLE = True
 except ImportError:
     QISKIT_AVAILABLE = False
@@ -23,8 +22,9 @@ class CHSHCircuitFactory:
     """
 
     @staticmethod
-    def create_chsh_circuit(theta_a: float, theta_b: float,
-                          phase_phi: float = 0) -> Any:
+    def create_chsh_circuit(
+        theta_a: float, theta_b: float, phase_phi: float = 0
+    ) -> Any:
         """
         CHSH回路を作成（標準的なCHSH実験）
 
@@ -40,8 +40,8 @@ class CHSHCircuitFactory:
             raise ImportError("Qiskit is required for circuit creation")
 
         # 2量子ビット + 2古典ビット
-        qubits = QuantumRegister(2, 'q')
-        bits = ClassicalRegister(2, 'c')
+        qubits = QuantumRegister(2, "q")
+        bits = ClassicalRegister(2, "c")
         qc = QuantumCircuit(qubits, bits)
 
         # Bell状態作成 |Φ+⟩ = (|00⟩ + |11⟩)/√2
