@@ -3,11 +3,12 @@
 Common Circuit Utilities - 共通回路ユーティリティ
 """
 
-from typing import Any, Dict
+from typing import Any
 
 # Qiskitのみに依存（OQTOPUS非依存）
 try:
     from qiskit import QuantumCircuit, transpile
+
     QISKIT_AVAILABLE = True
 except ImportError:
     QISKIT_AVAILABLE = False
@@ -34,7 +35,7 @@ class CommonCircuitUtils:
             return circuit
 
     @staticmethod
-    def get_circuit_info(circuit: Any) -> Dict[str, Any]:
+    def get_circuit_info(circuit: Any) -> dict[str, Any]:
         """
         回路情報を取得
         """
@@ -42,11 +43,11 @@ class CommonCircuitUtils:
             return {}
 
         return {
-            'depth': circuit.depth(),
-            'gate_count': len(circuit.data),
-            'qubit_count': circuit.num_qubits,
-            'classical_bits': circuit.num_clbits,
-            'gates': [instr.operation.name for instr in circuit.data]
+            "depth": circuit.depth(),
+            "gate_count": len(circuit.data),
+            "qubit_count": circuit.num_qubits,
+            "classical_bits": circuit.num_clbits,
+            "gates": [instr.operation.name for instr in circuit.data],
         }
 
     @staticmethod
@@ -89,7 +90,7 @@ def optimize_circuit(circuit: Any, level: int = 1) -> Any:
     return CommonCircuitUtils.optimize_circuit(circuit, level)
 
 
-def get_circuit_info(circuit: Any) -> Dict[str, Any]:
+def get_circuit_info(circuit: Any) -> dict[str, Any]:
     """
     回路情報取得の便利関数
     """

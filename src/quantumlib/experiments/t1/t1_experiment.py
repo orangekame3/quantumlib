@@ -1,90 +1,98 @@
 #!/usr/bin/env python3
 """
-T1 Experiment Class - T1減衰実験専用クラス
-BaseExperimentを継承し、T1実験に特化した実装を提供
+T1 Experiment Class - T1 decay experiment specialized class
+Inherits from BaseExperiment and provides T1 experiment-specific implementation
 """
 
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import numpy as np
 
-from ...circuit.t1_circuits import (
-    create_multiple_t1_circuits,
-)
 from ...core.base_experiment import BaseExperiment
 
 
 class T1Experiment(BaseExperiment):
     """
-    T1減衰実験クラス
+    T1 decay experiment class
 
-    特化機能:
-    - T1減衰回路の自動生成
-    - 指数減衰フィッティング
-    - 遅延時間スキャン実験
-    - T1時定数推定
+    Specialized features:
+    - Automatic T1 decay circuit generation
+    - Exponential decay fitting
+    - Delay time scan experiments
+    - T1 time constant estimation
     """
 
-    def __init__(self, experiment_name: str = None, disable_mitigation: bool = False, **kwargs):
-        # T1実験固有のパラメータを抽出（BaseExperimentには渡さない）
-        t1_specific_params = {"delay_points", "max_delay", "delay_times", "disable_mitigation"}
+    def __init__(
+        self, experiment_name: str = None, disable_mitigation: bool = False, **kwargs
+    ):
+        # Extract T1 experiment-specific parameters (not passed to BaseExperiment)
+        t1_specific_params = {
+            "delay_points",
+            "max_delay",
+            "delay_times",
+            "disable_mitigation",
+        }
 
-        # BaseExperimentに渡すkwargsをフィルタリング
+        # Filter kwargs to pass to BaseExperiment
         base_kwargs = {k: v for k, v in kwargs.items() if k not in t1_specific_params}
 
         super().__init__(experiment_name, **base_kwargs)
 
-        # T1実験固有の設定（実験値のみ使用、理論値は参考程度）
-        self.expected_t1 = 1000  # 初期推定値 [ns] - フィッティングの初期値のみに使用
-        self.t1_theoretical = None  # 使用しない
-        self.t2_theoretical = None  # 使用しない
+        # T1 experiment-specific settings (use experimental values only, theoretical values are for reference)
+        self.expected_t1 = (
+            1000  # Initial estimate [ns] - used only for fitting initial values
+        )
+        self.t1_theoretical = None  # Not used
+        self.t2_theoretical = None  # Not used
 
-        # T1実験ではreadout mitigationを有効化（シングルショット測定の精度向上）
+        # Enable readout mitigation for T1 experiments (improve single-shot measurement accuracy)
         if disable_mitigation:
-            self.mitigation_options = {}  # mitigation無し
-            print(f"T1 experiment: Raw measurement data (mitigation disabled for debugging)")
+            self.mitigation_options = {}  # No mitigation
+            print(
+                "T1 experiment: Raw measurement data (mitigation disabled for debugging)"
+            )
         else:
             self.mitigation_options = {"ro_error_mitigation": "pseudo_inverse"}
-            print(f"T1 experiment: Standard T1 measurement with readout mitigation")
+            print("T1 experiment: Standard T1 measurement with readout mitigation")
         self.mitigation_info = self.mitigation_options
 
-    def create_circuits(self, **kwargs) -> List[Any]:
+    def create_circuits(self, **kwargs) -> list[Any]:
         """
-        T1実験回路作成
+        Create T1 experiment circuits
 
         Args:
-            delay_points: 遅延時間点数 (default: 16)
-            max_delay: 最大遅延時間 [ns] (default: 1000)
-            t1: T1緩和時間 [ns] (default: 500)
-            t2: T2緩和時間 [ns] (default: 500)
-            delay_times: 直接指定する遅延時間リスト [ns] (optional)
+            delay_points: Number of delay time points (default: 16)
+            max_delay: Maximum delay time [ns] (default: 1000)
+            t1: T1 relaxation time [ns] (default: 500)
+            t2: T2 relaxation time [ns] (default: 500)
+            delay_times: Directly specified delay time list [ns] (optional)
 
         Returns:
-            T1回路リスト
+            T1 circuit list
         """
         delay_points = kwargs.get("delay_points", 51)
         max_delay = kwargs.get("max_delay", 100000)
-        # t1, t2パラメータは使用しない（実測データからフィッティングのため）
+        # t1, t2 parameters are not used (for fitting from measured data)
 
-        # 遅延時間範囲
+        # Delay time range
         if "delay_times" in kwargs:
             delay_times = np.array(kwargs["delay_times"])
         else:
-            # デフォルト: 100ns〜100μsの対数スケールで51点
+            # Default: 51 points on logarithmic scale from 100ns to 100μs
             delay_times = np.logspace(np.log10(100), np.log10(100 * 1000), num=51)
             if delay_points != 51:
                 delay_times = np.linspace(1, max_delay, delay_points)
 
-        # メタデータ保存
+        # Save metadata
         self.experiment_params = {
             "delay_times": delay_times.tolist(),
             "delay_points": len(delay_times),
             "max_delay": max_delay,
         }
 
-        # T1回路作成（実際の回路にはt1, t2パラメータは不要）
+        # Create T1 circuits (actual circuits don't need t1, t2 parameters)
         circuits = []
         for delay_time in delay_times:
             circuit = self._create_single_t1_circuit(delay_time)
@@ -93,23 +101,25 @@ class T1Experiment(BaseExperiment):
         print(
             f"T1 circuits: Delay range {len(delay_times)} points from {delay_times[0]:.1f} to {delay_times[-1]:.1f} ns"
         )
-        print(f"T1 circuit structure: |0⟩ → X → delay(τ) → measure (期待: P(1)は時間と共に減少)")
+        print(
+            "T1 circuit structure: |0⟩ → X → delay(τ) → measure (expected: P(1) decreases with time)"
+        )
 
         return circuits
 
     def run_t1_experiment_parallel(
         self,
-        devices: List[str] = ["qulacs"],
+        devices: list[str] = ["qulacs"],
         shots: int = 1024,
         parallel_workers: int = 4,
         **kwargs,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
-        T1実験の並列実行（delay timeの順序を保持）
+        Parallel execution of T1 experiment (preserving delay time order)
         """
         print(f"🔬 Running T1 experiment with {parallel_workers} parallel workers")
 
-        # 回路作成
+        # Create circuits
         circuits = self.create_circuits(**kwargs)
         delay_times = self.experiment_params["delay_times"]
 
@@ -117,17 +127,17 @@ class T1Experiment(BaseExperiment):
             f"   📊 {len(circuits)} circuits × {len(devices)} devices = {len(circuits) * len(devices)} jobs"
         )
 
-        # 並列実行（順序保持）
+        # Parallel execution (preserving order)
         job_data = self._submit_t1_circuits_parallel_with_order(
             circuits, devices, shots, parallel_workers
         )
 
-        # 結果収集（順序保持）
+        # Collect results (preserving order)
         raw_results = self._collect_t1_results_parallel_with_order(
             job_data, parallel_workers
         )
 
-        # 結果解析
+        # Analyze results
         analysis = self.analyze_results(raw_results)
 
         return {
@@ -138,10 +148,10 @@ class T1Experiment(BaseExperiment):
         }
 
     def _submit_t1_circuits_parallel_with_order(
-        self, circuits: List[Any], devices: List[str], shots: int, parallel_workers: int
-    ) -> Dict[str, List[Dict]]:
+        self, circuits: list[Any], devices: list[str], shots: int, parallel_workers: int
+    ) -> dict[str, list[dict]]:
         """
-        T1回路の並列投入（CHSHスタイルで順序保持）
+        Parallel submission of T1 circuits (preserving order CHSH-style)
         """
         print(f"Enhanced T1 parallel submission: {parallel_workers} workers")
 
@@ -150,10 +160,10 @@ class T1Experiment(BaseExperiment):
                 circuits, devices, shots, parallel_workers
             )
 
-        # 順序保持のためのデータ構造
+        # Data structure for preserving order
         all_job_data = {device: [None] * len(circuits) for device in devices}
 
-        # 回路とデバイスのペア作成（delay_time順序を保持）
+        # Create circuit and device pairs (preserving delay_time order)
         circuit_device_pairs = []
         for circuit_idx, circuit in enumerate(circuits):
             for device in devices:
@@ -174,7 +184,7 @@ class T1Experiment(BaseExperiment):
                 )
                 return device, None, circuit_idx, False
 
-        # 並列投入実行
+        # Execute parallel submission
         with ThreadPoolExecutor(max_workers=parallel_workers) as executor:
             futures = [
                 executor.submit(submit_single_t1_circuit, args)
@@ -194,7 +204,7 @@ class T1Experiment(BaseExperiment):
                     }
                     delay_time = self.experiment_params["delay_times"][circuit_idx]
                     print(
-                        f"T1 Circuit {circuit_idx+1} (τ={delay_time:.0f}ns) → {device}: {job_id[:8]}..."
+                        f"T1 Circuit {circuit_idx + 1} (τ={delay_time:.0f}ns) → {device}: {job_id[:8]}..."
                     )
                 else:
                     all_job_data[device][circuit_idx] = {
@@ -217,9 +227,9 @@ class T1Experiment(BaseExperiment):
         return all_job_data
 
     def _submit_t1_circuits_locally_parallel(
-        self, circuits: List[Any], devices: List[str], shots: int, parallel_workers: int
-    ) -> Dict[str, List[Dict]]:
-        """T1回路をローカルシミュレーターで並列実行"""
+        self, circuits: list[Any], devices: list[str], shots: int, parallel_workers: int
+    ) -> dict[str, list[dict]]:
+        """Parallel execution of T1 circuits on local simulator"""
         print(f"T1 Local parallel execution: {parallel_workers} workers")
 
         all_job_data = {device: [None] * len(circuits) for device in devices}
@@ -286,11 +296,11 @@ class T1Experiment(BaseExperiment):
         return all_job_data
 
     def _collect_t1_results_parallel_with_order(
-        self, job_data: Dict[str, List[Dict]], parallel_workers: int
-    ) -> Dict[str, List[Dict]]:
-        """T1結果の並列収集（CHSHスタイルで順序保持）"""
+        self, job_data: dict[str, list[dict]], parallel_workers: int
+    ) -> dict[str, list[dict]]:
+        """Parallel collection of T1 results (preserving order CHSH-style)"""
 
-        # 総ジョブ数を計算して収集開始をログ
+        # Calculate total jobs and log collection start
         total_jobs_to_collect = sum(
             1
             for device_jobs in job_data.values()
@@ -345,29 +355,31 @@ class T1Experiment(BaseExperiment):
         def collect_single_t1_result(args):
             job_id, device, circuit_idx = args
             try:
-                # ジョブ完了までポーリング
+                # Poll until job completion
                 result = self._poll_job_until_completion(job_id, timeout_minutes=5)
-                # OQTOPUSジョブ構造に基づく成功判定: status == 'succeeded'
+                # Success determination based on OQTOPUS job structure: status == 'succeeded'
                 if result and result.get("status") == "succeeded":
-                    # 複数の方法で測定結果を取得を試行
+                    # Try multiple methods to obtain measurement results
                     counts = None
                     shots = 0
-                    
-                    # 方法1: BaseExperimentのget_oqtopus_resultが直接countsを返す場合
+
+                    # Method 1: When BaseExperiment's get_oqtopus_result directly returns counts
                     if "counts" in result:
                         counts = result["counts"]
                         shots = result.get("shots", 0)
-                    
-                    # 方法2: job_info内のresult構造から取得
+
+                    # Method 2: Get from result structure within job_info
                     if not counts:
                         job_info = result.get("job_info", {})
                         if isinstance(job_info, dict):
-                            # OQTOPUS result構造を探索
-                            sampling_result = job_info.get("result", {}).get("sampling", {})
+                            # Explore OQTOPUS result structure
+                            sampling_result = job_info.get("result", {}).get(
+                                "sampling", {}
+                            )
                             if sampling_result:
                                 counts = sampling_result.get("counts", {})
-                    
-                    # 方法3: job_info自体がresult形式の場合
+
+                    # Method 3: When job_info itself is in result format
                     if not counts and "job_info" in result:
                         job_info = result["job_info"]
                         if isinstance(job_info, dict) and "job_info" in job_info:
@@ -380,20 +392,30 @@ class T1Experiment(BaseExperiment):
                                     counts = result_data["counts"]
 
                     if counts:
-                        # デバッグ: 順序とデータの確認
-                        if not hasattr(self, '_sample_shown'):
-                            delay_time = self.experiment_params["delay_times"][circuit_idx]
+                        # Debug: Confirm order and data
+                        if not hasattr(self, "_sample_shown"):
+                            delay_time = self.experiment_params["delay_times"][
+                                circuit_idx
+                            ]
                             total_counts = sum(counts.values())
-                            p1_raw = counts.get('1', counts.get(1, 0)) / total_counts if total_counts > 0 else 0
-                            print(f"🔍 Sample result [circuit_idx={circuit_idx}] for τ={delay_time:.0f}ns: counts={dict(counts)}, P(1)_raw={p1_raw:.3f}")
-                            self._sample_shown = getattr(self, '_sample_shown', 0) + 1
-                            if self._sample_shown >= 5:  # 最初の5結果を表示して順序確認
+                            p1_raw = (
+                                counts.get("1", counts.get(1, 0)) / total_counts
+                                if total_counts > 0
+                                else 0
+                            )
+                            print(
+                                f"🔍 Sample result [circuit_idx={circuit_idx}] for τ={delay_time:.0f}ns: counts={dict(counts)}, P(1)_raw={p1_raw:.3f}"
+                            )
+                            self._sample_shown = getattr(self, "_sample_shown", 0) + 1
+                            if (
+                                self._sample_shown >= 5
+                            ):  # Display first 5 results to confirm order
                                 self._sample_shown = True
-                        
-                        # 成功データを標準形式に変換
+
+                        # Convert successful data to standard format
                         processed_result = {
                             "success": True,
-                            "counts": dict(counts),  # Counterを辞書に変換
+                            "counts": dict(counts),  # Convert Counter to dictionary
                             "status": result.get("status"),
                             "execution_time": result.get("execution_time", 0),
                             "shots": shots or sum(counts.values()) if counts else 0,
@@ -401,14 +423,16 @@ class T1Experiment(BaseExperiment):
                         return device, processed_result, job_id, circuit_idx, True
                     else:
                         delay_time = self.experiment_params["delay_times"][circuit_idx]
-                        # デバッグ用: 結果構造をより詳細に表示
-                        print(f"⚠️ {device}[{circuit_idx}] (τ={delay_time:.0f}ns): {job_id[:8]}... no measurement data")
-                        if hasattr(self, '_debug_count') and self._debug_count < 3:
+                        # Debug: Display result structure in more detail
+                        print(
+                            f"⚠️ {device}[{circuit_idx}] (τ={delay_time:.0f}ns): {job_id[:8]}... no measurement data"
+                        )
+                        if hasattr(self, "_debug_count") and self._debug_count < 3:
                             print(f"   Debug - Full result: {result}")
-                            self._debug_count = getattr(self, '_debug_count', 0) + 1
+                            self._debug_count = getattr(self, "_debug_count", 0) + 1
                         return device, None, job_id, circuit_idx, False
                 else:
-                    # ジョブ失敗の場合
+                    # Case of job failure
                     delay_time = self.experiment_params["delay_times"][circuit_idx]
                     status = result.get("status", "unknown") if result else "no_result"
                     print(
@@ -445,10 +469,10 @@ class T1Experiment(BaseExperiment):
                         f"✅ {device}[{circuit_idx}] (τ={delay_time:.0f}ns): {job_id[:8]}... collected ({completed_jobs}/{total_jobs})"
                     )
                 else:
-                    # 失敗ケースは既に個別メソッド内でログ出力済み
+                    # Failure cases are already logged within individual methods
                     pass
 
-                # 進捗サマリーを20%ごとに表示
+                # Display progress summary every 20%
                 progress_percent = (completed_jobs * 100) // total_jobs
                 if (
                     progress_percent >= last_progress_percent + 20
@@ -459,7 +483,7 @@ class T1Experiment(BaseExperiment):
                     )
                     last_progress_percent = progress_percent
 
-        # 最終結果サマリー
+        # Final result summary
         total_successful = sum(
             1
             for device_results in all_results.values()
@@ -491,15 +515,15 @@ class T1Experiment(BaseExperiment):
         self, job_id: str, timeout_minutes: int = 5, poll_interval: float = 2.0
     ):
         """
-        ジョブが完了するまでポーリング
+        Poll until job completion
 
         Args:
-            job_id: ジョブID
-            timeout_minutes: タイムアウト時間（分）
-            poll_interval: ポーリング間隔（秒）
+            job_id: Job ID
+            timeout_minutes: Timeout time (minutes)
+            poll_interval: Polling interval (seconds)
 
         Returns:
-            完了したジョブの結果、またはNone
+            Result of completed job, or None
         """
         import time
 
@@ -514,9 +538,9 @@ class T1Experiment(BaseExperiment):
                 )
                 result = self.get_oqtopus_result(
                     job_id, timeout_minutes=1, verbose_log=False
-                )  # 短いタイムアウトで取得
+                )  # Get with short timeout
 
-                # 簡略なステータスログのみ
+                # Simple status log only
                 if not result:
                     continue
 
@@ -526,30 +550,34 @@ class T1Experiment(BaseExperiment):
 
                 status = result.get("status", "unknown")
 
-                # 重要な状態変更のみログ出力
-                if status != last_status and status in ["succeeded", "failed", "cancelled"]:
+                # Log only important state changes
+                if status != last_status and status in [
+                    "succeeded",
+                    "failed",
+                    "cancelled",
+                ]:
                     print(f"🏁 {job_id[:8]}... {status}")
                     last_status = status
 
-                # 終了状態をチェック（実際の結果構造に合わせて柔軟に判定）
+                # Check end state (flexible determination based on actual result structure)
                 if status in ["succeeded", "failed", "cancelled"]:
                     print(f"🏁 Job {job_id[:8]} completed with status: {status}")
                     return result
                 elif status in ["running", "submitted", "pending"]:
-                    # まだ実行中 - 続行
+                    # Still running - continue
                     time.sleep(poll_interval)
                     continue
                 elif result and result.get(
                     "success"
-                ):  # BaseExperimentのget_oqtopus_resultが返す成功フラグ
+                ):  # Success flag returned by BaseExperiment's get_oqtopus_result
                     print(f"🏁 Job {job_id[:8]} completed successfully (legacy format)")
                     return result
-                elif not status:  # statusがセットされていない場合は続行
+                elif not status:  # Continue if status is not set
                     print(f"⚠️ Job {job_id[:8]} has no status field, continuing...")
                     time.sleep(poll_interval)
                     continue
                 else:
-                    # 不明な状態 - 少し待ってリトライ
+                    # Unknown state - wait a bit and retry
                     print(
                         f"❓ Job {job_id[:8]} unknown status: {status}, continuing..."
                     )
@@ -557,12 +585,12 @@ class T1Experiment(BaseExperiment):
                     continue
 
             except Exception as e:
-                # 一時的なエラーの場合はリトライ
+                # Retry for temporary errors
                 print(f"⚠️ Polling error for {job_id[:8]}: {e}")
                 time.sleep(poll_interval)
                 continue
 
-        # タイムアウト
+        # Timeout
         print(f"⏰ Job {job_id[:8]}... timed out after {timeout_minutes} minutes")
         return None
 
@@ -570,7 +598,7 @@ class T1Experiment(BaseExperiment):
         self, device: str, job_id: str, circuit_idx: int
     ) -> tuple:
         """
-        単一T1結果の収集
+        Collection of single T1 result
         """
         try:
             result = self.get_oqtopus_result(job_id, wait_minutes=10)
@@ -584,13 +612,13 @@ class T1Experiment(BaseExperiment):
 
     def run_experiment(
         self,
-        devices: List[str] = ["qulacs"],
+        devices: list[str] = ["qulacs"],
         shots: int = 1024,
         parallel_workers: int = 4,
         **kwargs,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
-        T1実験実行（並列化版でrun_t1_experiment_parallelを呼び出し）
+        T1 experiment execution (parallelized version calling run_t1_experiment_parallel)
         """
         return self.run_t1_experiment_parallel(
             devices=devices, shots=shots, parallel_workers=parallel_workers, **kwargs
@@ -598,40 +626,40 @@ class T1Experiment(BaseExperiment):
 
     def _create_single_t1_circuit(self, delay_time: float):
         """
-        単一T1回路作成（t1, t2パラメータ不要）
+        Create single T1 circuit (t1, t2 parameters not required)
         """
         try:
             from qiskit import ClassicalRegister, QuantumCircuit, QuantumRegister
         except ImportError:
-            raise ImportError("Qiskit is required for circuit creation")
+            raise ImportError("Qiskit is required for circuit creation") from None
 
-        # 1量子ビット + 1古典ビット
+        # 1 qubit + 1 classical bit
         qubits = QuantumRegister(1, "q")
         bits = ClassicalRegister(1, "c")
         qc = QuantumCircuit(qubits, bits)
 
-        # |1⟩状態に励起
+        # Excite to |1⟩ state
         qc.x(0)
 
-        # 遅延時間の間待機
+        # Wait for delay time
         qc.delay(int(delay_time), 0, unit="ns")
 
-        # Z基底測定
+        # Z-basis measurement
         qc.measure(0, 0)
 
         return qc
 
     def analyze_results(
-        self, results: Dict[str, List[Dict[str, Any]]], **kwargs
-    ) -> Dict[str, Any]:
+        self, results: dict[str, list[dict[str, Any]]], **kwargs
+    ) -> dict[str, Any]:
         """
-        T1実験結果解析
+        T1 experiment result analysis
 
         Args:
-            results: 生測定結果
+            results: Raw measurement results
 
         Returns:
-            T1解析結果
+            T1 analysis results
         """
         if not results:
             return {"error": "No results to analyze"}
@@ -653,7 +681,7 @@ class T1Experiment(BaseExperiment):
             device_analysis = self._analyze_device_results(device_results, delay_times)
             analysis["device_results"][device] = device_analysis
 
-            # T1時定数推定（readout mitigationで補正済みデータを使用）
+            # T1 time constant estimation (using readout mitigation corrected data)
             t1_fitted, fitting_quality = self._estimate_t1_with_quality(
                 device_analysis["p1_values"], delay_times
             )
@@ -667,53 +695,59 @@ class T1Experiment(BaseExperiment):
             print(
                 f"{device}: T1 = {t1_fitted:.1f} ns {quality_str} [with RO mitigation]"
             )
-            
-            # 最初と最後のP(1)値を確認
+
+            # Check first and last P(1) values
             if device_analysis["p1_values"]:
                 p1_initial = device_analysis["p1_values"][0]
                 p1_final = device_analysis["p1_values"][-1]
-                print(f"   P(1) trend: {p1_initial:.3f} → {p1_final:.3f} ({'decreasing' if p1_final < p1_initial else 'INCREASING - CHECK DATA!'})")
+                print(
+                    f"   P(1) trend: {p1_initial:.3f} → {p1_final:.3f} ({'decreasing' if p1_final < p1_initial else 'INCREASING - CHECK DATA!'})"
+                )
 
-        # デバイス間比較
+        # Inter-device comparison
         analysis["comparison"] = self._compare_devices(analysis["device_results"])
 
         return analysis
 
     def _analyze_device_results(
-        self, device_results: List[Dict[str, Any]], delay_times: np.ndarray
-    ) -> Dict[str, Any]:
+        self, device_results: list[dict[str, Any]], delay_times: np.ndarray
+    ) -> dict[str, Any]:
         """
-        単一デバイス結果解析（順序デバッグ付き）
+        Single device result analysis (with order debugging)
         """
         print(f"🔍 Analyzing {len(device_results)} results in order...")
-        
+
         p1_values = []
 
         for i, result in enumerate(device_results):
             delay_time = delay_times[i] if i < len(delay_times) else f"unknown[{i}]"
-            
+
             if result and result["success"]:
                 counts = result["counts"]
 
-                # P(1)確率計算（readout mitigationで補正済み）
+                # P(1) probability calculation (corrected by readout mitigation)
                 p1 = self._calculate_p1_probability(counts)
                 p1_values.append(p1)
-                
-                # 最初の5点で順序デバッグ
+
+                # Order debugging with first 5 points
                 if i < 5:
-                    print(f"🔍 Point {i}: τ={delay_time}ns, P(1)={p1:.3f}, counts={dict(counts)}")
+                    print(
+                        f"🔍 Point {i}: τ={delay_time}ns, P(1)={p1:.3f}, counts={dict(counts)}"
+                    )
             else:
                 p1_values.append(np.nan)
                 if i < 5:
                     print(f"🔍 Point {i}: τ={delay_time}ns, FAILED")
 
-        # 順序確認のためのサマリー
+        # Summary for order confirmation
         valid_p1s = np.array([p for p in p1_values if not np.isnan(p)])
         if len(valid_p1s) >= 2:
             trend = "decreasing" if valid_p1s[-1] < valid_p1s[0] else "increasing"
-            print(f"📈 T1 trend: P(1) {valid_p1s[0]:.3f} → {valid_p1s[-1]:.3f} ({trend})")
-        
-        # 統計計算
+            print(
+                f"📈 T1 trend: P(1) {valid_p1s[0]:.3f} → {valid_p1s[-1]:.3f} ({trend})"
+            )
+
+        # Statistical calculation
 
         return {
             "p1_values": p1_values,
@@ -739,38 +773,40 @@ class T1Experiment(BaseExperiment):
             },
         }
 
-    def _calculate_p1_probability(self, counts: Dict[str, int]) -> float:
+    def _calculate_p1_probability(self, counts: dict[str, int]) -> float:
         """
-        P(1)確率計算（OQTOPUSの10進数countsから2進数変換）
+        P(1) probability calculation (converting OQTOPUS decimal counts to binary)
         """
-        # OQTOPUSからの10進数countsを2進数形式に変換
+        # Convert decimal counts from OQTOPUS to binary format
         binary_counts = self._convert_decimal_to_binary_counts(counts)
-        
+
         total = sum(binary_counts.values())
         if total == 0:
             return 0.0
 
-        # デバッグ情報表示（初回のみ）
-        if not hasattr(self, '_counts_debug_shown'):
+        # Display debug information (first time only)
+        if not hasattr(self, "_counts_debug_shown"):
             print(f"🔍 Raw decimal counts: {dict(counts)}")
             print(f"🔍 Converted binary counts: {dict(binary_counts)}")
             self._counts_debug_shown = True
 
-        # 標準的なP(1)確率計算
+        # Standard P(1) probability calculation
         n_1 = binary_counts.get("1", 0)
         p1 = n_1 / total
         return p1
-            
-    def _convert_decimal_to_binary_counts(self, decimal_counts: Dict[str, int]) -> Dict[str, int]:
+
+    def _convert_decimal_to_binary_counts(
+        self, decimal_counts: dict[str, int]
+    ) -> dict[str, int]:
         """
         OQTOPUSの10進数countsを2進数形式に変換
-        
+
         1量子ビットの場合:
         0 -> "0"  (|0⟩状態)
         1 -> "1"  (|1⟩状態)
         """
         binary_counts = {}
-        
+
         for decimal_key, count in decimal_counts.items():
             # キーが数値の場合と文字列の場合に対応
             if isinstance(decimal_key, str):
@@ -782,7 +818,7 @@ class T1Experiment(BaseExperiment):
                     continue
             else:
                 decimal_value = int(decimal_key)
-            
+
             # 1量子ビットの場合の変換
             if decimal_value == 0:
                 binary_key = "0"
@@ -790,18 +826,20 @@ class T1Experiment(BaseExperiment):
                 binary_key = "1"
             else:
                 # 予期しない値の場合はスキップして警告
-                print(f"⚠️ Unexpected count key: {decimal_key} (decimal value: {decimal_value})")
+                print(
+                    f"⚠️ Unexpected count key: {decimal_key} (decimal value: {decimal_value})"
+                )
                 continue
-            
+
             # 既存のキーがある場合は加算
             if binary_key in binary_counts:
                 binary_counts[binary_key] += count
             else:
                 binary_counts[binary_key] = count
-        
+
         return binary_counts
 
-    def _calculate_z_expectation(self, counts: Dict[str, int]) -> float:
+    def _calculate_z_expectation(self, counts: dict[str, int]) -> float:
         """
         <Z>期待値計算（readout error耐性）
         """
@@ -821,14 +859,14 @@ class T1Experiment(BaseExperiment):
         z_expectation = (n_0 - n_1) / total
         return z_expectation
 
-    def _estimate_t1(self, p1_values: List[float], delay_times: np.ndarray) -> float:
+    def _estimate_t1(self, p1_values: list[float], delay_times: np.ndarray) -> float:
         """
-        T1時定数推定（改善された指数減衰フィッティング）
+        T1 time constant estimation (improved exponential decay fitting)
         """
-        # NaNと非正値を除去
+        # Remove NaN and non-positive values
         valid_data = [
             (delay, p1)
-            for delay, p1 in zip(delay_times, p1_values)
+            for delay, p1 in zip(delay_times, p1_values, strict=False)
             if not np.isnan(p1) and p1 > 0
         ]
 
@@ -896,15 +934,15 @@ class T1Experiment(BaseExperiment):
         return float(t1_fitted)
 
     def _estimate_t1_with_quality(
-        self, p1_values: List[float], delay_times: np.ndarray
-    ) -> tuple[float, Dict[str, Any]]:
+        self, p1_values: list[float], delay_times: np.ndarray
+    ) -> tuple[float, dict[str, Any]]:
         """
         T1時定数推定と品質評価
         """
         # NaNと非正値を除去
         valid_data = [
             (delay, p1)
-            for delay, p1 in zip(delay_times, p1_values)
+            for delay, p1 in zip(delay_times, p1_values, strict=False)
             if not np.isnan(p1) and p1 > 0
         ]
 
@@ -999,15 +1037,17 @@ class T1Experiment(BaseExperiment):
         }
 
     def _estimate_t1_from_z_expectation(
-        self, z_values: List[float], delay_times: np.ndarray
-    ) -> tuple[float, Dict[str, Any]]:
+        self, z_values: list[float], delay_times: np.ndarray
+    ) -> tuple[float, dict[str, Any]]:
         """
         <Z>期待値からT1時定数推定（readout error耐性）
         理論: <Z>(t) = -exp(-t/T1) (|1⟩状態から開始)
         """
         # NaNを除去
         valid_data = [
-            (delay, z) for delay, z in zip(delay_times, z_values) if not np.isnan(z)
+            (delay, z)
+            for delay, z in zip(delay_times, z_values, strict=False)
+            if not np.isnan(z)
         ]
 
         if len(valid_data) < 3:
@@ -1070,7 +1110,9 @@ class T1Experiment(BaseExperiment):
         # フォールバック: 線形回帰 (log(-<Z>) vs t)
         try:
             # <Z>が負の値のみ使用（|1⟩状態なので）
-            negative_z_data = [(delay, -z) for delay, z in zip(delays, z_vals) if z < 0]
+            negative_z_data = [
+                (delay, -z) for delay, z in zip(delays, z_vals, strict=False) if z < 0
+            ]
 
             if len(negative_z_data) >= 3:
                 delays_neg = np.array([d[0] for d in negative_z_data])
@@ -1108,8 +1150,8 @@ class T1Experiment(BaseExperiment):
         }
 
     def _compare_devices(
-        self, device_results: Dict[str, Dict[str, Any]]
-    ) -> Dict[str, Any]:
+        self, device_results: dict[str, dict[str, Any]]
+    ) -> dict[str, Any]:
         """
         デバイス間比較分析
         """
@@ -1130,7 +1172,7 @@ class T1Experiment(BaseExperiment):
         return comparison
 
     def save_experiment_data(
-        self, results: Dict[str, Any], metadata: Dict[str, Any] = None
+        self, results: dict[str, Any], metadata: dict[str, Any] = None
     ) -> str:
         """
         T1実験データ保存
@@ -1177,8 +1219,8 @@ class T1Experiment(BaseExperiment):
         return main_file
 
     def generate_t1_plot(
-        self, results: Dict[str, Any], save_plot: bool = True, show_plot: bool = False
-    ) -> Optional[str]:
+        self, results: dict[str, Any], save_plot: bool = True, show_plot: bool = False
+    ) -> str | None:
         """Generate T1 experiment plot with all formatting"""
         try:
             import matplotlib.pyplot as plt
@@ -1245,7 +1287,7 @@ class T1Experiment(BaseExperiment):
         ax.set_xlabel("Delay time τ [ns] (log scale)", fontsize=14)
         ax.set_ylabel("P(1)", fontsize=14)
         ax.set_title(
-            f"QuantumLib T1 Decay Experiment",
+            "QuantumLib T1 Decay Experiment",
             fontsize=16,
             fontweight="bold",
         )
@@ -1277,13 +1319,13 @@ class T1Experiment(BaseExperiment):
         if show_plot:
             try:
                 plt.show()
-            except:
+            except Exception:
                 pass
 
         plt.close()
         return plot_filename
 
-    def save_complete_experiment_data(self, results: Dict[str, Any]) -> str:
+    def save_complete_experiment_data(self, results: dict[str, Any]) -> str:
         """Save experiment data and generate comprehensive report"""
         # Save main experiment data using existing system
         main_file = self.save_experiment_data(results["analysis"])
@@ -1295,14 +1337,14 @@ class T1Experiment(BaseExperiment):
         summary = self._create_experiment_summary(results)
         summary_file = self.data_manager.save_data(summary, "experiment_summary")
 
-        print(f"📊 Complete experiment data saved:")
+        print("📊 Complete experiment data saved:")
         print(f"  • Main results: {main_file}")
         print(f"  • Plot: {plot_file if plot_file else 'Not generated'}")
         print(f"  • Summary: {summary_file}")
 
         return main_file
 
-    def _create_experiment_summary(self, results: Dict[str, Any]) -> Dict[str, Any]:
+    def _create_experiment_summary(self, results: dict[str, Any]) -> dict[str, Any]:
         """Create human-readable experiment summary"""
         device_results = results.get("device_results", {})
         delay_times = results.get("delay_times", [])
@@ -1349,7 +1391,7 @@ class T1Experiment(BaseExperiment):
 
         return summary
 
-    def display_results(self, results: Dict[str, Any], use_rich: bool = True) -> None:
+    def display_results(self, results: dict[str, Any], use_rich: bool = True) -> None:
         """Display T1 experiment results in formatted table"""
         device_results = results.get("device_results", {})
 
@@ -1373,7 +1415,7 @@ class T1Experiment(BaseExperiment):
                 table.add_column("Decay", justify="right")
                 table.add_column("Clear Decay", justify="center")
 
-                method = results.get("method", "quantumlib_t1")
+                results.get("method", "quantumlib_t1")
 
                 for device, device_data in device_results.items():
                     if "p1_values" in device_data:
@@ -1401,7 +1443,7 @@ class T1Experiment(BaseExperiment):
 
                 console.print(table)
                 console.print(f"\nExpected T1: {self.expected_t1} ns")
-                console.print(f"Clear decay threshold: 0.3")
+                console.print("Clear decay threshold: 0.3")
 
             except ImportError:
                 use_rich = False
@@ -1412,7 +1454,7 @@ class T1Experiment(BaseExperiment):
             print("T1 Decay Results")
             print("=" * 60)
 
-            method = results.get("method", "quantumlib_t1")
+            results.get("method", "quantumlib_t1")
 
             for device, device_data in device_results.items():
                 if "p1_values" in device_data:
@@ -1436,12 +1478,12 @@ class T1Experiment(BaseExperiment):
                         print()
 
             print(f"Expected T1: {self.expected_t1} ns")
-            print(f"Clear decay threshold: 0.3")
+            print("Clear decay threshold: 0.3")
             print("=" * 60)
 
     def run_complete_t1_experiment(
         self,
-        devices: List[str] = ["qulacs"],
+        devices: list[str] = ["qulacs"],
         delay_points: int = 16,
         max_delay: float = 1000,
         t1: float = 500,
@@ -1452,7 +1494,7 @@ class T1Experiment(BaseExperiment):
         save_plot: bool = True,
         show_plot: bool = False,
         display_results: bool = True,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Run complete T1 experiment with all post-processing
         This is the main entry point for CLI usage

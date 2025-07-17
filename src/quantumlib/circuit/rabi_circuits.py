@@ -10,6 +10,7 @@ import numpy as np
 # Qiskitのみに依存（OQTOPUS非依存）
 try:
     from qiskit import ClassicalRegister, QuantumCircuit, QuantumRegister
+
     QISKIT_AVAILABLE = True
 except ImportError:
     QISKIT_AVAILABLE = False
@@ -23,8 +24,9 @@ class RabiCircuitFactory:
     """
 
     @staticmethod
-    def create_rabi_circuit(drive_amplitude: float, drive_time: float,
-                           drive_frequency: float = 0.0) -> Any:
+    def create_rabi_circuit(
+        drive_amplitude: float, drive_time: float, drive_frequency: float = 0.0
+    ) -> Any:
         """
         Rabi振動回路を作成
 
@@ -40,8 +42,8 @@ class RabiCircuitFactory:
             raise ImportError("Qiskit is required for circuit creation")
 
         # 1量子ビット + 1古典ビット
-        qubits = QuantumRegister(1, 'q')
-        bits = ClassicalRegister(1, 'c')
+        qubits = QuantumRegister(1, "q")
+        bits = ClassicalRegister(1, "c")
         qc = QuantumCircuit(qubits, bits)
 
         # |0⟩状態から開始
@@ -79,7 +81,7 @@ class RabiCircuitFactory:
         qc = QuantumCircuit(1, 1)
 
         # 第1のπ/2パルス（重ね合わせ状態作成）
-        qc.ry(np.pi/2, 0)
+        qc.ry(np.pi / 2, 0)
 
         # 待機時間による位相蓄積（Z回転で模擬）
         qc.rz(wait_time, 0)
@@ -87,7 +89,7 @@ class RabiCircuitFactory:
         # 第2のπ/2パルス（位相付き）
         if phase != 0.0:
             qc.rz(phase, 0)
-        qc.ry(np.pi/2, 0)
+        qc.ry(np.pi / 2, 0)
 
         qc.measure(0, 0)
 
@@ -138,19 +140,19 @@ class RabiCircuitFactory:
         qc = QuantumCircuit(1, 1)
 
         # π/2パルス（重ね合わせ状態作成）
-        qc.ry(np.pi/2, 0)
+        qc.ry(np.pi / 2, 0)
 
         # τ/2 待機
-        qc.rz(wait_time/2, 0)
+        qc.rz(wait_time / 2, 0)
 
         # πパルス（エコー）
         qc.x(0)
 
         # τ/2 待機
-        qc.rz(wait_time/2, 0)
+        qc.rz(wait_time / 2, 0)
 
         # 最終π/2パルス
-        qc.ry(np.pi/2, 0)
+        qc.ry(np.pi / 2, 0)
 
         qc.measure(0, 0)
 
@@ -158,12 +160,15 @@ class RabiCircuitFactory:
 
 
 # 便利関数
-def create_rabi_circuit(drive_amplitude: float, drive_time: float,
-                       drive_frequency: float = 0.0) -> Any:
+def create_rabi_circuit(
+    drive_amplitude: float, drive_time: float, drive_frequency: float = 0.0
+) -> Any:
     """
     Rabi振動回路作成の便利関数
     """
-    return RabiCircuitFactory.create_rabi_circuit(drive_amplitude, drive_time, drive_frequency)
+    return RabiCircuitFactory.create_rabi_circuit(
+        drive_amplitude, drive_time, drive_frequency
+    )
 
 
 def create_ramsey_circuit(wait_time: float, phase: float = 0.0) -> Any:

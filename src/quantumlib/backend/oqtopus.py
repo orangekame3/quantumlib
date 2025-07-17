@@ -6,7 +6,7 @@ Quantum Experiment Simple - OQTOPUSベース・シンプル設計
 
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import numpy as np
 
@@ -15,8 +15,8 @@ from ..core.data_manager import SimpleDataManager
 
 # OQTOPUS imports (ユーザーに見える)
 try:
-    from qiskit import QuantumCircuit
     from quri_parts_oqtopus.backend import OqtopusSamplingBackend
+
     OQTOPUS_AVAILABLE = True
 except ImportError:
     OQTOPUS_AVAILABLE = False
@@ -33,8 +33,11 @@ class QuantumExperimentSimple:
     - 必要最小限の抽象化
     """
 
-    def __init__(self, experiment_name: str = None,
-                 oqtopus_backend: Optional[OqtopusSamplingBackend] = None):
+    def __init__(
+        self,
+        experiment_name: str = None,
+        oqtopus_backend: OqtopusSamplingBackend | None = None,
+    ):
         """
         Initialize quantum experiment
 
@@ -73,22 +76,24 @@ class QuantumExperimentSimple:
         # OQTOPUS用の内部構造（後方互換性）
         self.transpiler_info = {
             "transpiler_lib": "qiskit",
-            "transpiler_options": self.transpiler_options
+            "transpiler_options": self.transpiler_options,
         }
         self.mitigation_info = self.mitigation_options
 
         print(f"🧪 QuantumExperiment: {self.experiment_name}")
         print(f"🔧 OQTOPUS: {'✅' if self.oqtopus_available else '❌'}")
 
-    def create_chsh_circuit(self, theta_a: float, theta_b: float,
-                          phase_phi: float = 0) -> Any:
+    def create_chsh_circuit(
+        self, theta_a: float, theta_b: float, phase_phi: float = 0
+    ) -> Any:
         """
         CHSH回路作成（circuit_factoryを使用）
         """
         return create_chsh_circuit(theta_a, theta_b, phase_phi)
 
-    def submit_circuit_to_oqtopus(self, circuit: Any, shots: int,
-                                device_id: str) -> Optional[str]:
+    def submit_circuit_to_oqtopus(
+        self, circuit: Any, shots: int, device_id: str
+    ) -> str | None:
         """
         単一回路をOQTOPUSに投入（ユーザーに見える実装）
 
@@ -107,9 +112,10 @@ class QuantumExperimentSimple:
         try:
             # QASM3を標準採用
             from qiskit.qasm3 import dumps
+
             qasm_str = dumps(circuit)
 
-            job_label = f"circuit_{int(time.time())}"
+            f"circuit_{int(time.time())}"
 
             # transpiler_info, mitigation_infoを動的更新
             self.transpiler_info["transpiler_options"] = self.transpiler_options
@@ -120,7 +126,7 @@ class QuantumExperimentSimple:
                 device_id=device_id,
                 shots=shots,
                 transpiler_info=self.transpiler_info,
-                mitigation_info=self.mitigation_info
+                mitigation_info=self.mitigation_info,
             )
 
             return job.job_id
@@ -129,10 +135,13 @@ class QuantumExperimentSimple:
             print(f"❌ OQTOPUS submission failed: {e}")
             return None
 
-    def submit_circuits_parallel(self, circuits: List[Any],
-                               devices: List[str] = ['qulacs'],
-                               shots: int = 1024,
-                               submit_interval: float = 1.0) -> Dict[str, List[str]]:
+    def submit_circuits_parallel(
+        self,
+        circuits: list[Any],
+        devices: list[str] = ["qulacs"],
+        shots: int = 1024,
+        submit_interval: float = 1.0,
+    ) -> dict[str, list[str]]:
         """
         複数回路を並列投入
         """
@@ -151,16 +160,18 @@ class QuantumExperimentSimple:
                     job_id = self.submit_circuit_to_oqtopus(circuit, shots, device)
                     if job_id:
                         device_jobs.append(job_id)
-                        print(f"✅ Circuit {i+1}/{len(circuits)} → {device}: {job_id[:8]}...")
+                        print(
+                            f"✅ Circuit {i + 1}/{len(circuits)} → {device}: {job_id[:8]}..."
+                        )
                     else:
-                        print(f"❌ Circuit {i+1}/{len(circuits)} → {device}: failed")
+                        print(f"❌ Circuit {i + 1}/{len(circuits)} → {device}: failed")
 
                     # サーバー負荷軽減
                     if submit_interval > 0 and i < len(circuits) - 1:
                         time.sleep(submit_interval)
 
                 except Exception as e:
-                    print(f"❌ Circuit {i+1} submission error: {e}")
+                    print(f"❌ Circuit {i + 1} submission error: {e}")
 
             return device, device_jobs
 
@@ -175,7 +186,9 @@ class QuantumExperimentSimple:
 
         return all_job_ids
 
-    def get_oqtopus_result(self, job_id: str, timeout_minutes: int = 30, verbose_log: bool = False) -> Optional[Dict[str, Any]]:
+    def get_oqtopus_result(
+        self, job_id: str, timeout_minutes: int = 30, verbose_log: bool = False
+    ) -> dict[str, Any] | None:
         """
         OQTOPUS結果取得（ユーザーに見える実装）
 
@@ -200,21 +213,22 @@ class QuantumExperimentSimple:
 
             # 結果待機（簡易実装）
             import time
+
             max_wait = timeout_minutes * 60
             wait_time = 0
 
             while wait_time < max_wait:
                 try:
                     result = job.result()
-                    if result and hasattr(result, 'counts'):
+                    if result and hasattr(result, "counts"):
                         counts = result.counts
                         return {
-                            'job_id': job_id,
-                            'counts': dict(counts),
-                            'shots': sum(counts.values()),
-                            'success': True
+                            "job_id": job_id,
+                            "counts": dict(counts),
+                            "shots": sum(counts.values()),
+                            "success": True,
                         }
-                except:
+                except Exception:
                     time.sleep(5)
                     wait_time += 5
 
@@ -225,8 +239,9 @@ class QuantumExperimentSimple:
             print(f"❌ Result collection failed for {job_id}: {e}")
             return None
 
-    def collect_results_parallel(self, job_ids: Dict[str, List[str]],
-                                wait_minutes: int = 30) -> Dict[str, List[Dict[str, Any]]]:
+    def collect_results_parallel(
+        self, job_ids: dict[str, list[str]], wait_minutes: int = 30
+    ) -> dict[str, list[dict[str, Any]]]:
         """
         結果を並列収集
         """
@@ -254,7 +269,9 @@ class QuantumExperimentSimple:
 
         # 並列収集
         with ThreadPoolExecutor(max_workers=len(job_ids)) as executor:
-            futures = [executor.submit(collect_from_device, item) for item in job_ids.items()]
+            futures = [
+                executor.submit(collect_from_device, item) for item in job_ids.items()
+            ]
 
             for future in as_completed(futures):
                 device, results = future.result()
@@ -263,71 +280,82 @@ class QuantumExperimentSimple:
 
         return all_results
 
-    def run_chsh_experiment(self, phase_points: int = 20,
-                           devices: List[str] = ['qulacs'],
-                           shots: int = 1024,
-                           submit_interval: float = 2.0,
-                           wait_minutes: int = 30) -> Dict[str, Any]:
+    def run_chsh_experiment(
+        self,
+        phase_points: int = 20,
+        devices: list[str] = ["qulacs"],
+        shots: int = 1024,
+        submit_interval: float = 2.0,
+        wait_minutes: int = 30,
+    ) -> dict[str, Any]:
         """
         CHSH実験を実行
         """
         print(f"🎯 CHSH Experiment: {phase_points} points, {shots} shots")
 
         # 位相スキャン回路作成（circuit_factory使用）
-        phase_range = np.linspace(0, 2*np.pi, phase_points)
+        phase_range = np.linspace(0, 2 * np.pi, phase_points)
         circuits = []
 
         for phi in phase_range:
-            circuit = self.create_chsh_circuit(0, np.pi/4, phase_phi=phi)
+            circuit = self.create_chsh_circuit(0, np.pi / 4, phase_phi=phi)
             circuits.append(circuit)
 
         print(f"🔧 Created {len(circuits)} CHSH circuits")
 
         # 並列実行
-        job_ids = self.submit_circuits_parallel(circuits, devices, shots, submit_interval)
+        job_ids = self.submit_circuits_parallel(
+            circuits, devices, shots, submit_interval
+        )
         results = self.collect_results_parallel(job_ids, wait_minutes)
 
         # 理論値計算
         S_theoretical = 2 * np.sqrt(2) * np.cos(phase_range)
 
         return {
-            'job_ids': job_ids,
-            'results': results,
-            'phase_range': phase_range.tolist(),
-            'S_theoretical': S_theoretical.tolist(),
-            'experiment_metadata': {
-                'phase_points': phase_points,
-                'devices': devices,
-                'shots': shots,
-                'oqtopus_available': self.oqtopus_available
-            }
+            "job_ids": job_ids,
+            "results": results,
+            "phase_range": phase_range.tolist(),
+            "S_theoretical": S_theoretical.tolist(),
+            "experiment_metadata": {
+                "phase_points": phase_points,
+                "devices": devices,
+                "shots": shots,
+                "oqtopus_available": self.oqtopus_available,
+            },
         }
 
-    def save_job_ids(self, job_ids: Dict[str, List[str]],
-                     metadata: Dict[str, Any] = None,
-                     filename: str = "job_ids") -> str:
+    def save_job_ids(
+        self,
+        job_ids: dict[str, list[str]],
+        metadata: dict[str, Any] = None,
+        filename: str = "job_ids",
+    ) -> str:
         """ジョブID保存"""
         save_data = {
-            'job_ids': job_ids,
-            'submitted_at': time.time(),
-            'oqtopus_config': {
-                'transpiler_options': self.transpiler_options,
-                'mitigation_options': self.mitigation_options,
-                'basis_gates': self.anemone_basis_gates
+            "job_ids": job_ids,
+            "submitted_at": time.time(),
+            "oqtopus_config": {
+                "transpiler_options": self.transpiler_options,
+                "mitigation_options": self.mitigation_options,
+                "basis_gates": self.anemone_basis_gates,
             },
-            'metadata': metadata or {}
+            "metadata": metadata or {},
         }
         return self.data_manager.save_data(save_data, filename)
 
-    def save_results(self, results: Dict[str, Any],
-                    metadata: Dict[str, Any] = None,
-                    filename: str = "results") -> str:
+    def save_results(
+        self,
+        results: dict[str, Any],
+        metadata: dict[str, Any] = None,
+        filename: str = "results",
+    ) -> str:
         """実験結果保存"""
         save_data = {
-            'results': results,
-            'saved_at': time.time(),
-            'oqtopus_available': self.oqtopus_available,
-            'metadata': metadata or {}
+            "results": results,
+            "saved_at": time.time(),
+            "oqtopus_available": self.oqtopus_available,
+            "metadata": metadata or {},
         }
         return self.data_manager.save_data(save_data, filename)
 
@@ -337,11 +365,13 @@ class QuantumExperimentSimple:
 
 
 # 便利関数（シンプル版）
-def run_chsh_comparison_simple(devices: List[str] = ['qulacs'],
-                              phase_points: int = 20,
-                              shots: int = 1024,
-                              submit_interval: float = 2.0,
-                              experiment_name: str = None) -> Dict[str, Any]:
+def run_chsh_comparison_simple(
+    devices: list[str] = ["qulacs"],
+    phase_points: int = 20,
+    shots: int = 1024,
+    submit_interval: float = 2.0,
+    experiment_name: str = None,
+) -> dict[str, Any]:
     """
     CHSH比較実験を簡単実行（シンプル版）
     """
@@ -351,5 +381,5 @@ def run_chsh_comparison_simple(devices: List[str] = ['qulacs'],
         phase_points=phase_points,
         devices=devices,
         shots=shots,
-        submit_interval=submit_interval
+        submit_interval=submit_interval,
     )

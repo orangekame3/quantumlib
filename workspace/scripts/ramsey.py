@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """
-Ramsey CLI - QuantumLib Ramsey振動実験
+Ramsey CLI - QuantumLib Ramsey Oscillation Experiment
 """
+
 from typing import Annotated, Any
 
 import numpy as np
@@ -26,20 +27,21 @@ from quantumlib.experiments.ramsey.ramsey_experiment import RamseyExperiment
 
 class RamseyExperimentCLI(BaseExperimentCLI):
     """
-    Ramsey実験専用CLI（QuantumLib統合フレームワーク使用）
+    Ramsey experiment dedicated CLI (using QuantumLib integrated framework)
     """
 
     def __init__(self):
         super().__init__(
-            experiment_name="Ramsey", help_text="QuantumLib Ramsey Oscillation Experiment"
+            experiment_name="Ramsey",
+            help_text="QuantumLib Ramsey Oscillation Experiment",
         )
 
     def get_experiment_class(self):
-        """Ramsey実験クラスを返す"""
+        """Returns the Ramsey experiment class"""
         return RamseyExperiment
 
     def get_experiment_specific_options(self) -> dict[str, Any]:
-        """Ramsey実験固有のオプション"""
+        """Ramsey experiment specific options"""
         return {
             "delay_points": 51,
             "max_delay": 200000,
@@ -47,7 +49,7 @@ class RamseyExperimentCLI(BaseExperimentCLI):
         }
 
     def create_experiment_config_display(self, **kwargs) -> str:
-        """Ramsey実験設定表示"""
+        """Ramsey experiment configuration display"""
         devices = kwargs.get("devices", ["qulacs"])
         backend = kwargs.get("backend", "local_simulator")
         shots = kwargs.get("shots", 1000)
@@ -60,7 +62,7 @@ class RamseyExperimentCLI(BaseExperimentCLI):
             f"Devices: {', '.join(devices)}\\n"
             f"Backend: {backend}\\n"
             f"Shots: {shots:,} per delay | Points: {delay_points}\\n"
-            f"Max Delay: {max_delay/1000:.1f} μs | Detuning: {detuning} MHz\\n"
+            f"Max Delay: {max_delay / 1000:.1f} μs | Detuning: {detuning} MHz\\n"
             f"Parallel: {parallel} threads\\n"
             f"Total measurements: {delay_points} delay points"
         )
@@ -68,12 +70,12 @@ class RamseyExperimentCLI(BaseExperimentCLI):
     def generate_circuits(
         self, experiment_instance: RamseyExperiment, **kwargs
     ) -> tuple[list[Any], dict]:
-        """Ramsey回路生成"""
+        """Ramsey circuit generation"""
         delay_points = kwargs.get("delay_points", 51)
         max_delay = kwargs.get("max_delay", 200000)
         detuning = kwargs.get("detuning", 0.0)
 
-        # デフォルトの遅延時間設定
+        # Default delay time configuration
         delay_times = np.logspace(np.log10(50), np.log10(200 * 1000), num=51)
 
         circuits = experiment_instance.create_circuits(
@@ -103,7 +105,7 @@ class RamseyExperimentCLI(BaseExperimentCLI):
         metadata: Any,
         **kwargs,
     ) -> dict:
-        """Ramsey結果処理"""
+        """Ramsey result processing"""
         delay_times = metadata["delay_times"]
         max_delay = metadata["max_delay"]
         delay_points = metadata["delay_points"]
@@ -112,7 +114,7 @@ class RamseyExperimentCLI(BaseExperimentCLI):
         self.console.print("   → Analyzing Ramsey oscillation...")
         analysis = experiment_instance.analyze_results(raw_results)
 
-        # experiment_params設定（保存用）
+        # experiment_params configuration (for saving)
         experiment_instance.experiment_params = {
             "delay_times": delay_times.tolist(),
             "max_delay": max_delay,
@@ -144,17 +146,18 @@ class RamseyExperimentCLI(BaseExperimentCLI):
         max_delay: Annotated[
             float, typer.Option(help="Maximum delay time [ns]")
         ] = 200000,
-        detuning: Annotated[
-            float, typer.Option(help="Frequency detuning [MHz]")
-        ] = 0.0,
+        detuning: Annotated[float, typer.Option(help="Frequency detuning [MHz]")] = 0.0,
         enable_fitting: Annotated[
-            bool, typer.Option("--enable-fitting", help="Enable T2*/detuning parameter fitting")
+            bool,
+            typer.Option(
+                "--enable-fitting", help="Enable T2*/detuning parameter fitting"
+            ),
         ] = True,
     ):
         """
         Run Ramsey oscillation experiment
         """
-        # フレームワークの共通実行ロジックを呼び出し
+        # Call framework's common execution logic
         self._execute_experiment(
             devices=[d.value for d in devices],
             shots=shots,
@@ -165,14 +168,14 @@ class RamseyExperimentCLI(BaseExperimentCLI):
             no_plot=no_plot,
             show_plot=show_plot,
             verbose=verbose,
-            delay_points=delay_points,  # Ramsey固有オプション
-            max_delay=max_delay,  # Ramsey固有オプション
-            detuning=detuning,  # Ramsey固有オプション
-            enable_fitting=enable_fitting,  # フィッティング有効化オプション
+            delay_points=delay_points,  # Ramsey specific option
+            max_delay=max_delay,  # Ramsey specific option
+            detuning=detuning,  # Ramsey specific option
+            enable_fitting=enable_fitting,  # Fitting enable option
         )
 
 
-# CLIインスタンス作成と実行
+# CLI instance creation and execution
 def main():
     cli = RamseyExperimentCLI()
     cli.start()

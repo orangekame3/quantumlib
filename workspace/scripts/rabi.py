@@ -2,6 +2,7 @@
 """
 Rabi CLI - QuantumLib Rabi Oscillation Experiment
 """
+
 from typing import Annotated, Any
 
 import numpy as np
@@ -26,7 +27,7 @@ from quantumlib.experiments.rabi.rabi_experiment import RabiExperiment
 
 class RabiExperimentCLI(BaseExperimentCLI):
     """
-    Rabi実験専用CLI（QuantumLib統合フレームワーク使用）
+    Rabi experiment dedicated CLI (using QuantumLib integrated framework)
     """
 
     def __init__(self):
@@ -35,18 +36,18 @@ class RabiExperimentCLI(BaseExperimentCLI):
         )
 
     def get_experiment_class(self):
-        """Rabi実験クラスを返す"""
+        """Returns the Rabi experiment class"""
         return RabiExperiment
 
     def get_experiment_specific_options(self) -> dict[str, Any]:
-        """Rabi実験固有のオプション"""
+        """Rabi experiment specific options"""
         return {
             "points": 20,
             "max_amplitude": 2 * np.pi,
         }
 
     def create_experiment_config_display(self, **kwargs) -> str:
-        """Rabi実験設定表示"""
+        """Rabi experiment configuration display"""
         devices = kwargs.get("devices", ["qulacs"])
         backend = kwargs.get("backend", "local_simulator")
         shots = kwargs.get("shots", 1000)
@@ -66,11 +67,11 @@ class RabiExperimentCLI(BaseExperimentCLI):
     def generate_circuits(
         self, experiment_instance: RabiExperiment, **kwargs
     ) -> tuple[list[Any], dict]:
-        """Rabi回路生成"""
+        """Rabi circuit generation"""
         points = kwargs.get("points", 20)
         max_amplitude = kwargs.get("max_amplitude", 2 * np.pi)
 
-        # Rabi実験用の回路を生成
+        # Generate circuits for Rabi experiment
         amplitude_range = np.linspace(0, max_amplitude, points)
 
         circuits = experiment_instance.create_circuits(
@@ -99,7 +100,7 @@ class RabiExperimentCLI(BaseExperimentCLI):
         metadata: Any,
         **kwargs,
     ) -> dict:
-        """Rabi結果処理"""
+        """Rabi result processing"""
         amplitude_range = metadata["amplitude_range"]
         max_amplitude = metadata["max_amplitude"]
         points = metadata["points"]
@@ -107,7 +108,7 @@ class RabiExperimentCLI(BaseExperimentCLI):
         self.console.print("   → Analyzing Rabi oscillation...")
         analysis = experiment_instance.analyze_results(raw_results)
 
-        # experiment_params設定（保存用）
+        # experiment_params configuration (for saving)
         experiment_instance.experiment_params = {
             "amplitude_range": amplitude_range.tolist(),
             "max_amplitude": max_amplitude,
@@ -143,7 +144,7 @@ class RabiExperimentCLI(BaseExperimentCLI):
         """
         Run Rabi oscillation experiment
         """
-        # フレームワークの共通実行ロジックを呼び出し
+        # Call framework's common execution logic
         self._execute_experiment(
             devices=[d.value for d in devices],
             shots=shots,
@@ -154,12 +155,12 @@ class RabiExperimentCLI(BaseExperimentCLI):
             no_plot=no_plot,
             show_plot=show_plot,
             verbose=verbose,
-            points=points,  # Rabi固有オプション
-            max_amplitude=max_amplitude,  # Rabi固有オプション
+            points=points,  # Rabi specific option
+            max_amplitude=max_amplitude,  # Rabi specific option
         )
 
 
-# CLIインスタンス作成と実行
+# CLI instance creation and execution
 def main():
     cli = RabiExperimentCLI()
     cli.start()
