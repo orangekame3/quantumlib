@@ -7,7 +7,10 @@ Base class for all quantum experiment classes
 import time
 from abc import ABC, abstractmethod
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from quri_parts_oqtopus.backend import OqtopusSamplingBackend
 
 from .data_manager import SimpleDataManager
 
@@ -32,7 +35,7 @@ class BaseExperiment(ABC):
     def __init__(
         self,
         experiment_name: str | None = None,
-        oqtopus_backend: OqtopusSamplingBackend | None = None,
+        oqtopus_backend: "OqtopusSamplingBackend | None" = None,
     ):
         """
         Initialize base experiment
@@ -53,6 +56,8 @@ class BaseExperiment(ABC):
         else:
             self.oqtopus_available = OQTOPUS_AVAILABLE
             if OQTOPUS_AVAILABLE:
+                from quri_parts_oqtopus.backend import OqtopusSamplingBackend
+
                 self.oqtopus_backend = OqtopusSamplingBackend()
 
         # Local simulator configuration

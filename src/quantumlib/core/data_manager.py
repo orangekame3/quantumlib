@@ -106,6 +106,15 @@ class SimpleDataManager:
         print(f"📋 Summary: {path}")
         return path
 
+    def get_data_directory(self) -> str:
+        """
+        Get the data directory path
+
+        Returns:
+            Data directory path
+        """
+        return f"{self.session_dir}/data"
+
     def _convert_for_json(self, obj):
         """Helper for JSON conversion"""
         if isinstance(obj, dict):

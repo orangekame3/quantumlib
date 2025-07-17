@@ -6,7 +6,10 @@ Circuit creation is separated, OQTOPUS backend part is visible to users
 
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from quri_parts_oqtopus.backend import OqtopusSamplingBackend
 
 import numpy as np
 
@@ -15,7 +18,7 @@ from ..core.data_manager import SimpleDataManager
 
 # OQTOPUS imports (visible to users)
 try:
-    from quri_parts_oqtopus.backend import OqtopusSamplingBackend
+    import quri_parts_oqtopus.backend  # noqa: F401
 
     OQTOPUS_AVAILABLE = True
 except ImportError:
@@ -35,7 +38,7 @@ class QuantumExperimentSimple:
     def __init__(
         self,
         experiment_name: str | None = None,
-        oqtopus_backend: OqtopusSamplingBackend | None = None,
+        oqtopus_backend: "OqtopusSamplingBackend | None" = None,
     ):
         """
         Initialize quantum experiment
@@ -54,6 +57,8 @@ class QuantumExperimentSimple:
         else:
             self.oqtopus_available = OQTOPUS_AVAILABLE
             if OQTOPUS_AVAILABLE:
+                from quri_parts_oqtopus.backend import OqtopusSamplingBackend
+
                 self.oqtopus_backend = OqtopusSamplingBackend()
 
         # OQTOPUS settings (directly editable by users)
