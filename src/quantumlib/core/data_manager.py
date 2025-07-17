@@ -17,7 +17,7 @@ class SimpleDataManager:
     シンプルなデータ管理システム
     """
 
-    def __init__(self, experiment_name: str = None):
+    def __init__(self, experiment_name: str | None = None):
         """
         Initialize simple data manager
 
@@ -36,10 +36,10 @@ class SimpleDataManager:
         os.makedirs(f"{self.session_dir}/plots", exist_ok=True)
         os.makedirs(f"{self.session_dir}/data", exist_ok=True)
 
-        self.files = []
+        self.files: list = []
         print(f"Results: {self.session_dir}")
 
-    def save_plot(self, fig, name: str, formats: list[str] = ["png"]) -> str:
+    def save_plot(self, fig, name: str, formats: list[str] = ["png"]) -> str | None:
         """
         プロット保存
 
@@ -51,7 +51,7 @@ class SimpleDataManager:
         Returns:
             保存パス
         """
-        saved_files = []
+        saved_files: list = []
         for fmt in formats:
             filename = f"{name}_{self.timestamp}.{fmt}"
             path = f"{self.session_dir}/plots/{filename}"

@@ -13,7 +13,6 @@ try:
     QISKIT_AVAILABLE = True
 except ImportError:
     QISKIT_AVAILABLE = False
-    QuantumCircuit = None
 
 
 class T1CircuitFactory:

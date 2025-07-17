@@ -12,7 +12,6 @@ try:
     QISKIT_AVAILABLE = True
 except ImportError:
     QISKIT_AVAILABLE = False
-    QuantumCircuit = None
 
 
 class CHSHCircuitFactory:
