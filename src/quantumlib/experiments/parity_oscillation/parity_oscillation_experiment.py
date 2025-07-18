@@ -399,13 +399,13 @@ class ParityOscillationExperiment(BaseExperiment):
                 p_center = np.mean(parity_array)
                 amplitude = np.max(np.abs(parity_array - p_center))
                 coherence = amplitude
-                
+
                 # Optional: try fitting but don't rely on it
                 try:
                     fit_result = self.fit_sinusoid(phase_array, parity_array)
                     fit_success = fit_result["fit_success"]
                     r_squared = fit_result["r_squared"]
-                except:
+                except Exception:
                     fit_result = {"fit_success": False, "r_squared": 0.0}
                     fit_success = False
                     r_squared = 0.0
@@ -492,7 +492,7 @@ class ParityOscillationExperiment(BaseExperiment):
         # Get device information for plot labeling
         device_names = list(analysis.keys())
         device_name = device_names[0] if device_names else "unknown"
-        
+
         # Create figure with subplots for different delay times
         device_data = list(analysis.values())[0]  # Get first device data
         oscillation_data = device_data.get("parity_oscillations", [])
@@ -521,7 +521,9 @@ class ParityOscillationExperiment(BaseExperiment):
         else:
             # Multiple subplots
             fig, axes = plt.subplots(
-                nrows=(n_delays + 1) // 2, ncols=2, figsize=(14, 4 * ((n_delays + 1) // 2))
+                nrows=(n_delays + 1) // 2,
+                ncols=2,
+                figsize=(14, 4 * ((n_delays + 1) // 2)),
             )
             if n_delays == 2:
                 axes = axes.flatten()
@@ -583,9 +585,7 @@ class ParityOscillationExperiment(BaseExperiment):
         plot_filename = None
         if save_plot:
             plt.tight_layout()
-            plot_filename = (
-                f"parity_oscillation_plot_{device_name}_{self.experiment_name}_{int(time.time())}.png"
-            )
+            plot_filename = f"parity_oscillation_plot_{device_name}_{self.experiment_name}_{int(time.time())}.png"
 
             # Save to experiment results directory (following existing pattern)
             if hasattr(self, "data_manager") and hasattr(
