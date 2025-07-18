@@ -54,6 +54,9 @@ CommonShowPlotOption = Annotated[
 CommonVerboseOption = Annotated[
     bool, typer.Option("--verbose", "-v", help="Verbose output")
 ]
+CommonNoMitigationOption = Annotated[
+    bool, typer.Option("--no-mitigation", help="Disable error mitigation for OQTOPUS backend")
+]
 
 
 class BaseExperimentCLI(ABC):
@@ -408,10 +411,14 @@ class BaseExperimentCLI(ABC):
             elif not no_plot:
                 # Execute only plot generation even without data saving
                 self.console.print("   → Generating plot...")
-                plot_method = getattr(
-                    experiment_instance, f"generate_{self.experiment_name.lower()}_plot"
-                )
-                plot_method(results, save_plot=True, show_plot=show_plot)
+                plot_method_name = f"generate_{self.experiment_name.lower()}_plot"
+                try:
+                    plot_method = getattr(experiment_instance, plot_method_name)
+                    plot_method(results, save_plot=True, show_plot=show_plot)
+                except AttributeError:
+                    self.console.print(f"⚠️ Plot method '{plot_method_name}' not found, skipping plot generation", style="yellow")
+                except Exception as plot_error:
+                    self.console.print(f"⚠️ Plot generation failed: {plot_error}", style="yellow")
 
             # Display results
             self.console.print("   → Displaying results...")

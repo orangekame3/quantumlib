@@ -34,7 +34,13 @@ class ParityOscillationExperiment(BaseExperiment):
 
     def __init__(self, experiment_name: str = None, **kwargs):
         # Extract parity oscillation experiment-specific parameters (not passed to BaseExperiment)
-        parity_specific_params = {"num_qubits_list", "delays_us", "phase_points"}
+        parity_specific_params = {
+            "num_qubits_list",
+            "delays_us",
+            "phase_points",
+            "no_delay",
+            "no_mitigation",
+        }
 
         # Filter kwargs to pass to BaseExperiment
         base_kwargs = {
@@ -47,12 +53,21 @@ class ParityOscillationExperiment(BaseExperiment):
         self.default_delays_us = [0, 1, 2, 4, 8, 16]  # delay times in microseconds
         self.default_phase_points = 21  # φ from 0 to π (4N+1 points as in paper)
 
+        # Handle mitigation options
+        no_mitigation = kwargs.get("no_mitigation", False)
+        if no_mitigation:
+            self.mitigation_options = {}
+
         print("Parity Oscillation Experiment initialized")
         print(f"Default qubit counts: {self.default_num_qubits}")
         print(f"Default delays (μs): {self.default_delays_us}")
 
     def create_ghz_with_delay_and_rotation(
-        self, num_qubits: int, delay_us: float = 0.0, phi: float = 0.0
+        self,
+        num_qubits: int,
+        delay_us: float = 0.0,
+        phi: float = 0.0,
+        no_delay: bool = False,
     ) -> Any:
         """
         Create GHZ state circuit with delay and rotation analysis
@@ -67,6 +82,7 @@ class ParityOscillationExperiment(BaseExperiment):
             num_qubits: Number of qubits in GHZ state
             delay_us: Delay time in microseconds
             phi: Rotation phase φ
+            no_delay: Skip delay insertion (for faster execution)
 
         Returns:
             Quantum circuit
@@ -82,13 +98,11 @@ class ParityOscillationExperiment(BaseExperiment):
         for i in range(1, num_qubits):
             qc.cx(0, i)  # CNOT chain
 
-        # Step 2: Apply delay using identity gates
-        # Each identity gate = 80ns + 10ns buffer = 90ns (as in paper)
-        if delay_us > 0:
-            num_identity_gates = int(delay_us * 1000 / 90)  # Convert μs to 90ns units
+        # Step 2: Apply delay directly in nanoseconds
+        if delay_us > 0 and not no_delay:
+            delay_ns = delay_us * 1000  # Convert μs to ns
             for qubit in range(num_qubits):
-                for _ in range(num_identity_gates):
-                    qc.id(qubit)
+                qc.delay(delay_ns, qubit)
 
         # Step 3: Apply rotation U(φ) to each qubit
         # U(φ) = exp(-iφσy/2) rotation around Y-axis
@@ -111,12 +125,17 @@ class ParityOscillationExperiment(BaseExperiment):
             num_qubits_list: List of qubit counts to test (default: [1,2,3,4,5])
             delays_us: List of delay times in μs (default: [0,1,2,4,8,16])
             phase_points: Number of phase points from 0 to π (default: 21)
+            no_delay: Skip delay insertion for faster execution (default: False)
 
         Returns:
             List of quantum circuits
         """
         num_qubits_list = kwargs.get("num_qubits_list", self.default_num_qubits)
         delays_us = kwargs.get("delays_us", self.default_delays_us)
+        no_delay = kwargs.get("no_delay", False)
+
+        # Note: delays_us is ignored in no_delay mode
+
         kwargs.get("phase_points", self.default_phase_points)
 
         circuits = []
@@ -127,10 +146,11 @@ class ParityOscillationExperiment(BaseExperiment):
             actual_phase_points = 4 * num_qubits + 1
             phase_values = np.linspace(0, np.pi, actual_phase_points)
 
-            for delay_us in delays_us:
+            if no_delay:
+                # No delay mode: generate circuits without delay parameter
                 for phi in phase_values:
                     circuit = self.create_ghz_with_delay_and_rotation(
-                        num_qubits, delay_us, phi
+                        num_qubits, 0.0, phi, no_delay
                     )
                     circuits.append(circuit)
 
@@ -138,18 +158,39 @@ class ParityOscillationExperiment(BaseExperiment):
                     circuit_metadata.append(
                         {
                             "num_qubits": num_qubits,
-                            "delay_us": delay_us,
+                            "delay_us": 0.0,  # Always 0 in no-delay mode
                             "phi": phi,
                             "circuit_index": len(circuits) - 1,
                         }
                     )
+            else:
+                # Normal mode: iterate over all delays
+                for delay_us in delays_us:
+                    for phi in phase_values:
+                        circuit = self.create_ghz_with_delay_and_rotation(
+                            num_qubits, delay_us, phi, no_delay
+                        )
+                        circuits.append(circuit)
+
+                        # Store metadata for analysis
+                        circuit_metadata.append(
+                            {
+                                "num_qubits": num_qubits,
+                                "delay_us": delay_us,
+                                "phi": phi,
+                                "circuit_index": len(circuits) - 1,
+                            }
+                        )
 
         # Store metadata for later analysis
         self.circuit_metadata = circuit_metadata
 
         print(f"Generated {len(circuits)} parity oscillation circuits")
         print(f"Qubit counts: {num_qubits_list}")
-        print(f"Delays: {delays_us} μs")
+        if no_delay:
+            print("⚠️ Delay gates skipped (--no-delay mode) - using only τ=0")
+        else:
+            print(f"Delays: {delays_us} μs")
         print(
             f"Phase points per (N,τ): {actual_phase_points} for max N={max(num_qubits_list)}"
         )
@@ -173,7 +214,34 @@ class ParityOscillationExperiment(BaseExperiment):
         even_count = 0
         odd_count = 0
 
-        for bitstring, count in counts.items():
+        # Check if we need OQTOPUS decimal-to-binary conversion
+        if any(isinstance(key, int) for key in counts.keys()):
+            # OQTOPUS decimal format - need to guess num_qubits from data
+            max_value = max(k for k in counts.keys() if isinstance(k, int))
+            num_qubits = max_value.bit_length() if max_value > 0 else 1
+
+            # Debug info (show once)
+            if not hasattr(self, "_parity_counts_debug_shown"):
+                print(f"🔍 Parity Raw decimal counts: {dict(counts)}")
+                print(f"🔍 Detected {num_qubits} qubits from max value {max_value}")
+                self._parity_counts_debug_shown = True
+
+            # Convert to binary format
+            binary_counts = {}
+            for key, count in counts.items():
+                if isinstance(key, int):
+                    binary_key = format(key, f"0{num_qubits}b")
+                else:
+                    binary_key = str(key)
+                binary_counts[binary_key] = count
+        else:
+            binary_counts = counts
+
+        for bitstring, count in binary_counts.items():
+            # Ensure string format
+            if not isinstance(bitstring, str):
+                bitstring = str(bitstring)
+
             # Count number of 1s in bitstring
             num_ones = bitstring.count("1")
             if num_ones % 2 == 0:
@@ -325,16 +393,29 @@ class ParityOscillationExperiment(BaseExperiment):
                 phase_array = np.array(data["phase_values"])[sorted_indices]
                 parity_array = np.array(data["parity_values"])[sorted_indices]
 
-                # Fit sinusoid to extract coherence
-                fit_result = self.fit_sinusoid(phase_array, parity_array)
-                coherence = fit_result["amplitude"]
+                # Calculate coherence as amplitude of parity oscillations
+                # Amplitude = deviation from center = max(|P - P_center|)
+                # where P_center is the mean parity value
+                p_center = np.mean(parity_array)
+                amplitude = np.max(np.abs(parity_array - p_center))
+                coherence = amplitude
+                
+                # Optional: try fitting but don't rely on it
+                try:
+                    fit_result = self.fit_sinusoid(phase_array, parity_array)
+                    fit_success = fit_result["fit_success"]
+                    r_squared = fit_result["r_squared"]
+                except:
+                    fit_result = {"fit_success": False, "r_squared": 0.0}
+                    fit_success = False
+                    r_squared = 0.0
 
                 coherence_data = {
                     "num_qubits": num_qubits,
                     "delay_us": delay_us,
                     "coherence": coherence,
-                    "fit_r_squared": fit_result["r_squared"],
-                    "fit_success": fit_result["fit_success"],
+                    "fit_r_squared": r_squared,
+                    "fit_success": fit_success,
                 }
 
                 oscillation_data = {
@@ -383,7 +464,7 @@ class ParityOscillationExperiment(BaseExperiment):
 
         return self.data_manager.save_data(save_data, "parity_oscillation_results")
 
-    def generate_parity_plot(
+    def generate_parityoscillation_plot(
         self, results: dict[str, Any], save_plot: bool = True, show_plot: bool = False
     ) -> str | None:
         """
@@ -408,6 +489,10 @@ class ParityOscillationExperiment(BaseExperiment):
             print("No analysis results for plotting")
             return None
 
+        # Get device information for plot labeling
+        device_names = list(analysis.keys())
+        device_name = device_names[0] if device_names else "unknown"
+        
         # Create figure with subplots for different delay times
         device_data = list(analysis.values())[0]  # Get first device data
         oscillation_data = device_data.get("parity_oscillations", [])
@@ -429,16 +514,19 @@ class ParityOscillationExperiment(BaseExperiment):
             return None
 
         # Create subplots
-        fig, axes = plt.subplots(
-            nrows=(n_delays + 1) // 2, ncols=2, figsize=(14, 4 * ((n_delays + 1) // 2))
-        )
-
         if n_delays == 1:
-            axes = [axes]
-        elif n_delays <= 2:
-            axes = axes.flatten() if n_delays == 2 else [axes]
+            # Single subplot for one delay
+            fig, ax = plt.subplots(figsize=(7, 4))
+            axes = [ax]
         else:
-            axes = axes.flatten()
+            # Multiple subplots
+            fig, axes = plt.subplots(
+                nrows=(n_delays + 1) // 2, ncols=2, figsize=(14, 4 * ((n_delays + 1) // 2))
+            )
+            if n_delays == 2:
+                axes = axes.flatten()
+            else:
+                axes = axes.flatten()
 
         # Colors for different qubit counts (matching existing style)
         colors = ["blue", "red", "green", "orange", "purple"]
@@ -463,25 +551,13 @@ class ParityOscillationExperiment(BaseExperiment):
                     alpha=0.8,
                 )
 
-                # Plot fit if available
-                fit_params = data.get("fit_parameters", {})
-                if fit_params.get("fit_success", False):
-                    phi_fit = np.linspace(0, np.pi, 100)
-                    amplitude = fit_params["amplitude"]
-                    phase = fit_params["phase"]
-                    offset = fit_params["offset"]
-                    freq = fit_params["frequency"]
-
-                    parity_fit = amplitude * np.sin(freq * phi_fit + phase) + offset
-                    ax.plot(
-                        phi_fit, parity_fit, "--", color=color, alpha=0.6, linewidth=2
-                    )
+                # Fit line removed for simplicity - show only actual data points
 
             # Formatting (following existing style)
             ax.set_xlabel("Phase φ [rad]", fontsize=12)
             ax.set_ylabel("Parity (P_even - P_odd)", fontsize=12)
             ax.set_title(
-                f"Parity Oscillations (τ = {delay_us} μs)",
+                f"Parity Oscillations (τ = {delay_us} μs) - {device_name}",
                 fontsize=14,
                 fontweight="bold",
             )
@@ -497,9 +573,9 @@ class ParityOscillationExperiment(BaseExperiment):
         for i in range(n_delays, len(axes)):
             axes[i].set_visible(False)
 
-        # Main title
+        # Main title with device information
         fig.suptitle(
-            "QuantumLib Parity Oscillation (GHZ Decoherence) Experiment",
+            f"QuantumLib Parity Oscillation (GHZ Decoherence) Experiment - {device_name}",
             fontsize=16,
             fontweight="bold",
         )
@@ -508,7 +584,7 @@ class ParityOscillationExperiment(BaseExperiment):
         if save_plot:
             plt.tight_layout()
             plot_filename = (
-                f"parity_oscillation_plot_{self.experiment_name}_{int(time.time())}.png"
+                f"parity_oscillation_plot_{device_name}_{self.experiment_name}_{int(time.time())}.png"
             )
 
             # Save to experiment results directory (following existing pattern)
@@ -547,7 +623,7 @@ class ParityOscillationExperiment(BaseExperiment):
         """
         try:
             # Use the unified plot generation method
-            self.generate_parity_plot(
+            self.generate_parityoscillation_plot(
                 {"analysis": analysis_results}, save_plot=True, show_plot=False
             )
         except ImportError:
@@ -570,7 +646,13 @@ class ParityOscillationExperiment(BaseExperiment):
         main_file = self.save_experiment_data(results["analysis"])
 
         # Generate and save plots using unified method
-        plot_file = self.generate_parity_plot(results, save_plot=True, show_plot=False)
+        try:
+            plot_file = self.generate_parityoscillation_plot(
+                results, save_plot=True, show_plot=False
+            )
+        except Exception as e:
+            print(f"⚠️ Plot generation failed: {e}")
+            plot_file = None
 
         # Create experiment summary
         summary = self._create_experiment_summary(results)

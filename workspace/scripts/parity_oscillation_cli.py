@@ -13,6 +13,7 @@ from quantumlib.cli.base_cli import (
     CommonBackendOption,
     CommonDevicesOption,
     CommonExperimentNameOption,
+    CommonNoMitigationOption,
     CommonNoPlotOption,
     CommonNoSaveOption,
     CommonParallelOption,
@@ -32,7 +33,7 @@ class ParityOscillationExperimentCLI(BaseExperimentCLI):
 
     def __init__(self):
         super().__init__(
-            experiment_name="ParityOscillation",
+            experiment_name="parityoscillation",
             help_text="QuantumLib Parity Oscillation (GHZ Decoherence) Experiment",
         )
 
@@ -87,6 +88,7 @@ class ParityOscillationExperimentCLI(BaseExperimentCLI):
             num_qubits_list=num_qubits_list,
             delays_us=delays_us,
             phase_points=phase_points,
+            no_delay=kwargs.get("no_delay", False),
         )
 
         self.console.print(f"   Qubit counts: {num_qubits_list}")
@@ -159,6 +161,11 @@ class ParityOscillationExperimentCLI(BaseExperimentCLI):
             int | None,
             typer.Option(help="Number of phase points (default: 4N+1 for each N)"),
         ] = None,
+        no_delay: Annotated[
+            bool,
+            typer.Option(help="Skip delay gates for faster execution"),
+        ] = False,
+        no_mitigation: CommonNoMitigationOption = False,
     ):
         """
         Run parity oscillation experiment for GHZ state decoherence study
@@ -177,6 +184,8 @@ class ParityOscillationExperimentCLI(BaseExperimentCLI):
             num_qubits_list=num_qubits,  # Parity oscillation specific option
             delays_us=delays,  # Parity oscillation specific option
             phase_points=phase_points,  # Parity oscillation specific option
+            no_delay=no_delay,  # Parity oscillation specific option
+            no_mitigation=no_mitigation,  # Mitigation control option
         )
 
     def main(self):
