@@ -24,13 +24,6 @@ from .parity_circuits import (
     create_ghz_with_delay_rotation,
     create_parity_scan_circuits,
 )
-from .rabi_circuits import (
-    RabiCircuitFactory,
-    create_rabi_circuit,
-    create_ramsey_circuit,
-    create_t1_circuit,
-    create_t2_echo_circuit,
-)
 
 # Make all convenience functions available from here as well
 __all__ = [
@@ -44,12 +37,6 @@ __all__ = [
     "create_ghz_with_delay_rotation",
     "create_parity_scan_circuits",
     "create_coherence_decay_circuits",
-    # Rabi-related
-    "RabiCircuitFactory",
-    "create_rabi_circuit",
-    "create_ramsey_circuit",
-    "create_t1_circuit",
-    "create_t2_echo_circuit",
     # Common utilities
     "CommonCircuitUtils",
     "optimize_circuit",

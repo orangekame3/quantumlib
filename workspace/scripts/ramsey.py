@@ -5,7 +5,6 @@ Ramsey CLI - QuantumLib Ramsey Oscillation Experiment
 
 from typing import Annotated, Any
 
-import numpy as np
 import typer
 
 from oqtopus_experiments.cli.base_cli import (
@@ -70,32 +69,28 @@ class RamseyExperimentCLI(BaseExperimentCLI):
     def generate_circuits(
         self, experiment_instance: RamseyExperiment, **kwargs
     ) -> tuple[list[Any], dict]:
-        """Ramsey circuit generation"""
+        """Ramsey circuit generation using modern classmethod approach"""
         delay_points = kwargs.get("delay_points", 51)
         max_delay = kwargs.get("max_delay", 200000)
         detuning = kwargs.get("detuning", 0.0)
+        basis_gates = kwargs.get("basis_gates")
+        optimization_level = kwargs.get("optimization_level", 1)
 
-        # Default delay time configuration
-        delay_times = np.logspace(np.log10(50), np.log10(200 * 1000), num=51)
-
-        circuits = experiment_instance.create_circuits(
+        # Use the new classmethod for stateless circuit creation
+        circuits, metadata = RamseyExperiment.create_ramsey_circuits(
             delay_points=delay_points,
             max_delay=max_delay,
             detuning=detuning,
-            delay_times=delay_times,
+            basis_gates=basis_gates,
+            optimization_level=optimization_level,
         )
 
         self.console.print(
-            f"   Delay range: {delay_points} points from {delay_times[0]:.1f} to {delay_times[-1]:.1f} ns"
+            f"   Delay range: {metadata['delay_points']} points from {metadata['delay_times'][0]:.1f} to {metadata['delay_times'][-1]:.1f} ns"
         )
-        self.console.print(f"   Detuning: {detuning} MHz")
+        self.console.print(f"   Detuning: {metadata['detuning']} MHz")
 
-        return circuits, {
-            "delay_times": delay_times,
-            "max_delay": max_delay,
-            "delay_points": delay_points,
-            "detuning": detuning,
-        }
+        return circuits, metadata
 
     def process_results(
         self,

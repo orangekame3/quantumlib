@@ -62,29 +62,151 @@ class CHSHExperiment(BaseExperiment, ParallelExecutionMixin):
         self.classical_bound = 2.0
         self.theoretical_max_s = 2 * np.sqrt(2)
 
-        print(
-            f"CHSH bounds: Classical ≤ {self.classical_bound}, "
-            f"Quantum max ≈ {self.theoretical_max_s:.3f}"
-        )
+    @classmethod
+    def create_chsh_circuits(
+        cls,
+        phase_points: int = 20,
+        theta_a: float = 0.0,
+        theta_b: float = np.pi / 4,
+        angles: list[float] | None = None,
+        basis_gates: list[str] | None = None,
+        optimization_level: int = 1,
+    ) -> tuple[list[Any], dict[str, Any]]:
+        """
+        Create CHSH experiment circuits (stateless)
+
+        Args:
+            phase_points: Number of phase points
+            theta_a: Alice measurement angle
+            theta_b: Bob measurement angle
+            angles: Directly specified angle list [rad]
+            basis_gates: Transpiler basis gates
+            optimization_level: Transpiler optimization level
+
+        Returns:
+            (circuits, metadata) tuple
+        """
+        # Generate angles if not provided
+        if angles is None:
+            angles = np.linspace(0, 2 * np.pi, phase_points).tolist()
+
+        # CHSH 4-measurement method: ZZ, ZX, XZ, XX
+        measurement_bases = [
+            (0, 0),  # ZZ measurement
+            (0, 1),  # ZX measurement
+            (1, 0),  # XZ measurement
+            (1, 1),  # XX measurement
+        ]
+
+        circuits = []
+        circuit_metadata = []
+
+        for angle_idx, angle in enumerate(angles):
+            for meas_idx, (alice_basis, bob_basis) in enumerate(measurement_bases):
+                circuit = cls._create_single_chsh_circuit(
+                    angle=angle,
+                    theta_a=theta_a,
+                    theta_b=theta_b,
+                    alice_basis=alice_basis,
+                    bob_basis=bob_basis,
+                    basis_gates=basis_gates,
+                    optimization_level=optimization_level,
+                )
+                circuits.append(circuit)
+
+                circuit_metadata.append(
+                    {
+                        "angle": angle,
+                        "angle_index": angle_idx,
+                        "measurement_index": meas_idx,
+                        "alice_basis": alice_basis,
+                        "bob_basis": bob_basis,
+                        "measurement_name": ["ZZ", "ZX", "XZ", "XX"][meas_idx],
+                    }
+                )
+
+        # Create metadata
+        metadata = {
+            "phase_points": phase_points,
+            "angles": angles,
+            "theta_a": theta_a,
+            "theta_b": theta_b,
+            "measurement_bases": measurement_bases,
+            "circuit_metadata": circuit_metadata,
+            "experiment_type": "CHSH",
+            "basis_gates": basis_gates,
+            "optimization_level": optimization_level,
+            "total_circuits": len(circuits),
+        }
+
+        return circuits, metadata
+
+    @staticmethod
+    def _create_single_chsh_circuit(
+        angle: float,
+        theta_a: float = 0.0,
+        theta_b: float = np.pi / 4,
+        alice_basis: int = 0,
+        bob_basis: int = 0,
+        basis_gates: list[str] | None = None,
+        optimization_level: int = 1,
+    ) -> Any:
+        """Create single CHSH circuit (pure function)"""
+        from qiskit import QuantumCircuit, transpile
+
+        # Create 2-qubit circuit
+        circuit = QuantumCircuit(2, 2)
+
+        # CHSH bell state preparation
+        circuit.h(0)
+        circuit.cx(0, 1)
+
+        # Alice's measurement rotation
+        if alice_basis == 1:  # X basis
+            circuit.ry(theta_a + angle, 0)
+        else:  # Z basis
+            circuit.ry(theta_a, 0)
+
+        # Bob's measurement rotation
+        if bob_basis == 1:  # X basis
+            circuit.ry(theta_b, 1)
+        else:  # Z basis
+            pass  # No rotation needed for Z basis
+
+        # Measurements
+        circuit.measure_all()
+
+        # Transpile if basis gates specified
+        if basis_gates is not None:
+            circuit = transpile(
+                circuit,
+                basis_gates=basis_gates,
+                optimization_level=optimization_level,
+            )
+
+        return circuit
 
     def create_circuits(self, **kwargs) -> list[Any]:
         """
-        Create CHSH experiment circuits (T1/Ramsey standard pattern)
-        Generate batch circuits using 4-measurement method
+        Create CHSH experiment circuits (compatibility wrapper)
+
+        Note: Consider using CHSHExperiment.create_chsh_circuits() classmethod for new code.
 
         Args:
             points: Number of phase points (default: 20) ← passed from CLI
             phase_points: Number of phase points (default: 20)
             theta_a: Alice angle (default: 0)
             theta_b: Bob angle (default: π/4)
+            angles: Custom angle list (optional)
 
         Returns:
             List of CHSH circuits (4 measurements × phase_points circuits)
         """
-        # Prioritize points parameter from CLI (same pattern as T1/Ramsey)
+        # Extract parameters
         phase_points = kwargs.get("points", kwargs.get("phase_points", 20))
-        kwargs.get("theta_a", 0)
+        kwargs.get("theta_a", 0.0)
         kwargs.get("theta_b", np.pi / 4)
+        angles = kwargs.get("angles")
 
         # Phase range
         phase_range = np.linspace(0, 2 * np.pi, phase_points)
@@ -131,14 +253,6 @@ class CHSHExperiment(BaseExperiment, ParallelExecutionMixin):
         )
 
         return circuits
-
-    def _create_single_chsh_circuit(
-        self, theta_a: float, theta_b: float, phase_phi: float
-    ):
-        """
-        Create single CHSH circuit (T1/Ramsey pattern)
-        """
-        return create_chsh_circuit(theta_a, theta_b, phase_phi)
 
     def analyze_results(
         self, results: dict[str, list[dict[str, Any]]], **kwargs

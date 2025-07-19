@@ -152,6 +152,87 @@ results = parity.run_experiment(
 
 ### Circuit Generation
 
+#### Modern Classmethod-Based Circuit Creation (Recommended)
+
+The new functional programming approach provides type-safe, stateless circuit creation with comprehensive metadata:
+
+```python
+from oqtopus_experiments.experiments.t1.t1_experiment import T1Experiment
+from oqtopus_experiments.experiments.ramsey.ramsey_experiment import RamseyExperiment
+from oqtopus_experiments.experiments.chsh.chsh_experiment import CHSHExperiment
+from oqtopus_experiments.experiments.rabi.rabi_experiment import RabiExperiment
+from oqtopus_experiments.experiments.t2_echo.t2_echo_experiment import T2EchoExperiment
+
+# T1 relaxation time circuits
+circuits, metadata = T1Experiment.create_t1_circuits(
+    delay_points=20,
+    max_delay=50000.0,  # 50 μs
+    basis_gates=["sx", "x", "rz", "cx"]
+)
+
+# Ramsey interference circuits with detuning
+circuits, metadata = RamseyExperiment.create_ramsey_circuits(
+    delay_points=25,
+    max_delay=10000.0,  # 10 μs
+    detuning=1.5  # MHz
+)
+
+# CHSH Bell inequality test circuits
+circuits, metadata = CHSHExperiment.create_chsh_circuits(
+    phase_points=20,
+    theta_a=0.0,
+    theta_b=3.14159/4
+)
+
+# Rabi oscillation circuits
+circuits, metadata = RabiExperiment.create_rabi_circuits(
+    amplitude_points=30,
+    max_amplitude=2*3.14159,
+    drive_time=1.0,
+    drive_frequency=0.5
+)
+
+# T2 Echo circuits (Hahn Echo or CPMG)
+circuits, metadata = T2EchoExperiment.create_t2_echo_circuits(
+    delay_points=25,
+    max_delay=100000.0,  # 100 μs
+    echo_type="hahn",  # or "cpmg"
+    num_echoes=1
+)
+
+# Access rich metadata
+print(f"Created {len(circuits)} circuits")
+print(f"Experiment type: {metadata['experiment_type']}")
+print(f"Parameters: {metadata}")
+```
+
+#### Functional Composition and Parameter Exploration
+
+```python
+# Combine circuits from different experiments for batch execution
+t1_circuits, t1_meta = T1Experiment.create_t1_circuits(delay_points=10)
+ramsey_circuits, ramsey_meta = RamseyExperiment.create_ramsey_circuits(delay_points=10)
+
+all_circuits = t1_circuits + ramsey_circuits
+all_metadata = [t1_meta, ramsey_meta]
+
+# Parameter exploration
+results = {}
+for delay_points in [10, 20, 50]:
+    for max_delay in [1000, 5000, 10000]:
+        circuits, metadata = T1Experiment.create_t1_circuits(
+            delay_points=delay_points,
+            max_delay=max_delay
+        )
+        key = f"points_{delay_points}_delay_{max_delay}"
+        results[key] = {
+            "circuit_count": len(circuits),
+            "delay_range": (metadata['delay_times'][0], metadata['delay_times'][-1])
+        }
+```
+
+#### Legacy Circuit Factories (Still Supported)
+
 ```python
 from quantumlib.circuit.chsh_circuits import create_chsh_circuit
 from quantumlib.circuit.rabi_circuits import create_rabi_circuit
@@ -240,13 +321,24 @@ sequenceDiagram
 
 ## Features
 
+### Quantum Experiments
 - CHSH Bell inequality experiments
 - Rabi oscillation measurements
 - Parity oscillation experiments (GHZ decoherence studies)
 - Ramsey interference experiments
 - T1/T2 coherence time measurements
+
+### Modern Architecture
+- **Functional Programming Patterns**: Stateless circuit creation with classmethods
+- **Type Safety**: Comprehensive type annotations with mypy support
+- **Enhanced Testability**: Direct circuit generation without experiment instances
+- **Backward Compatibility**: Existing APIs continue to work unchanged
+- **Rich Metadata**: Comprehensive experiment parameters and circuit information
+
+### Execution & Backends
 - Multiple backend support (Qulacs, OQTOPUS)
 - Parallel execution and data visualization
+- Efficient parameter exploration and batch processing
 
 ## Development
 

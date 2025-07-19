@@ -5,7 +5,6 @@ T1 CLI - QuantumLib T1 Decay Experiment
 
 from typing import Annotated, Any
 
-import numpy as np
 import typer
 
 from oqtopus_experiments.cli.base_cli import (
@@ -67,28 +66,25 @@ class T1ExperimentCLI(BaseExperimentCLI):
     def generate_circuits(
         self, experiment_instance: T1Experiment, **kwargs
     ) -> tuple[list[Any], dict]:
-        """T1 circuit generation"""
+        """T1 circuit generation using modern classmethod approach"""
         delay_points = kwargs.get("delay_points", 51)
         max_delay = kwargs.get("max_delay", 100000)
+        basis_gates = kwargs.get("basis_gates")
+        optimization_level = kwargs.get("optimization_level", 1)
 
-        # Default delay time configuration
-        delay_times = np.logspace(np.log10(100), np.log10(100 * 1000), num=51)
-
-        circuits = experiment_instance.create_circuits(
+        # Use the new classmethod for stateless circuit creation
+        circuits, metadata = T1Experiment.create_t1_circuits(
             delay_points=delay_points,
             max_delay=max_delay,
-            delay_times=delay_times,
+            basis_gates=basis_gates,
+            optimization_level=optimization_level,
         )
 
         self.console.print(
-            f"   Delay range: {delay_points} points from {delay_times[0]:.1f} to {delay_times[-1]:.1f} ns"
+            f"   Delay range: {metadata['delay_points']} points from {metadata['delay_times'][0]:.1f} to {metadata['delay_times'][-1]:.1f} ns"
         )
 
-        return circuits, {
-            "delay_times": delay_times,
-            "max_delay": max_delay,
-            "delay_points": delay_points,
-        }
+        return circuits, metadata
 
     def process_results(
         self,

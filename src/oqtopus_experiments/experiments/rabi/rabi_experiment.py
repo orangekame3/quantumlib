@@ -9,9 +9,6 @@ from typing import Any
 
 import numpy as np
 
-from ...circuit.rabi_circuits import (
-    create_rabi_circuit,
-)
 from ...core.base_experiment import BaseExperiment
 
 
@@ -45,48 +42,148 @@ class RabiExperiment(BaseExperiment):
 
         print(f"Rabi experiment: Expected π pulse ≈ {self.expected_pi_pulse:.3f} rad")
 
-    def create_circuits(self, **kwargs) -> list[Any]:
+    @classmethod
+    def create_rabi_circuits(
+        cls,
+        amplitude_points: int = 20,
+        max_amplitude: float = 2 * np.pi,
+        drive_time: float = 1.0,
+        drive_frequency: float = 0.0,
+        amplitude_range: list[float] | None = None,
+        basis_gates: list[str] | None = None,
+        optimization_level: int = 1,
+    ) -> tuple[list[Any], dict[str, Any]]:
         """
-        Create Rabi experiment circuits
+        Create Rabi experiment circuits (stateless)
 
         Args:
             amplitude_points: Number of amplitude points (default: 20)
             max_amplitude: Maximum amplitude (default: 2π)
             drive_time: Drive time (default: 1.0)
             drive_frequency: Drive frequency (default: 0.0)
+            amplitude_range: Directly specified amplitude range (optional)
+            basis_gates: Basis gates for transpilation (optional)
+            optimization_level: Qiskit transpiler optimization level (default: 1)
+
+        Returns:
+            Tuple of (circuits, metadata)
+        """
+        # Handle amplitude range
+        if amplitude_range is not None:
+            amplitude_range_array = np.array(amplitude_range)
+        else:
+            amplitude_range_array = np.linspace(0, max_amplitude, amplitude_points)
+
+        # Create circuits
+        circuits = []
+        for amplitude in amplitude_range_array:
+            circuit = cls._create_single_rabi_circuit(
+                drive_amplitude=amplitude,
+                drive_time=drive_time,
+                drive_frequency=drive_frequency,
+                basis_gates=basis_gates,
+                optimization_level=optimization_level,
+            )
+            circuits.append(circuit)
+
+        # Create metadata
+        metadata = {
+            "amplitude_range": amplitude_range_array.tolist(),
+            "amplitude_points": len(amplitude_range_array),
+            "max_amplitude": max_amplitude,
+            "drive_time": drive_time,
+            "drive_frequency": drive_frequency,
+            "experiment_type": "Rabi",
+            "basis_gates": basis_gates,
+            "optimization_level": optimization_level,
+        }
+
+        return circuits, metadata
+
+    @staticmethod
+    def _create_single_rabi_circuit(
+        drive_amplitude: float,
+        drive_time: float = 1.0,
+        drive_frequency: float = 0.0,
+        basis_gates: list[str] | None = None,
+        optimization_level: int = 1,
+    ) -> Any:
+        """Create single Rabi circuit (pure function)"""
+        from qiskit import ClassicalRegister, QuantumCircuit, QuantumRegister, transpile
+
+        # 1 quantum bit + 1 classical bit
+        qubits = QuantumRegister(1, "q")
+        bits = ClassicalRegister(1, "c")
+        circuit = QuantumCircuit(qubits, bits)
+
+        # Rabi drive: RX rotation (amplitude × time = rotation angle)
+        angle = drive_amplitude * drive_time
+
+        # Consider phase due to frequency
+        if drive_frequency != 0.0:
+            circuit.rz(drive_frequency, 0)  # Z-axis phase rotation
+
+        # Rotation around X-axis (Rabi drive)
+        circuit.rx(angle, 0)
+
+        # Z-basis measurement
+        circuit.measure(0, 0)
+
+        # Transpile if requested
+        if basis_gates is not None:
+            circuit = transpile(
+                circuit, basis_gates=basis_gates, optimization_level=optimization_level
+            )
+
+        return circuit
+
+    def create_circuits(self, **kwargs) -> list[Any]:
+        """
+        Create Rabi experiment circuits (compatibility wrapper)
+
+        Args:
+            amplitude_points: Number of amplitude points (default: 20)
+            max_amplitude: Maximum amplitude (default: 2π)
+            drive_time: Drive time (default: 1.0)
+            drive_frequency: Drive frequency (default: 0.0)
+            amplitude_range: Directly specified amplitude range (optional)
 
         Returns:
             List of Rabi circuits
         """
+        # Get parameters with defaults
         amplitude_points = kwargs.get("amplitude_points", 20)
         max_amplitude = kwargs.get("max_amplitude", 2 * np.pi)
         drive_time = kwargs.get("drive_time", 1.0)
         drive_frequency = kwargs.get("drive_frequency", 0.0)
+        amplitude_range = kwargs.get("amplitude_range")
+        basis_gates = kwargs.get("basis_gates")
+        optimization_level = kwargs.get("optimization_level", 1)
 
-        # Amplitude range
-        if "amplitude_range" in kwargs:
-            amplitude_range = np.array(kwargs["amplitude_range"])
-        else:
-            amplitude_range = np.linspace(0, max_amplitude, amplitude_points)
+        # Use classmethod implementation
+        circuits, metadata = self.create_rabi_circuits(
+            amplitude_points=amplitude_points,
+            max_amplitude=max_amplitude,
+            drive_time=drive_time,
+            drive_frequency=drive_frequency,
+            amplitude_range=amplitude_range,
+            basis_gates=basis_gates,
+            optimization_level=optimization_level,
+        )
 
-        # Save metadata
+        # Store metadata for compatibility
         self.experiment_params = {
-            "amplitude_range": amplitude_range.tolist(),
-            "drive_time": drive_time,
-            "drive_frequency": drive_frequency,
-            "amplitude_points": len(amplitude_range),
+            "amplitude_range": metadata["amplitude_range"],
+            "amplitude_points": metadata["amplitude_points"],
+            "drive_time": metadata["drive_time"],
+            "drive_frequency": metadata["drive_frequency"],
         }
 
-        circuits = []
-        for amplitude in amplitude_range:
-            circuit = create_rabi_circuit(amplitude, drive_time, drive_frequency)
-            circuits.append(circuit)
-
         print(
-            f"Rabi circuits: drive_time={drive_time:.3f}, frequency={drive_frequency:.3f}"
+            f"Rabi circuits: drive_time={metadata['drive_time']:.3f}, frequency={metadata['drive_frequency']:.3f}"
         )
         print(
-            f"Amplitude range: {len(amplitude_range)} points from {amplitude_range[0]:.3f} to {amplitude_range[-1]:.3f}"
+            f"Amplitude range: {len(metadata['amplitude_range'])} points from {metadata['amplitude_range'][0]:.3f} to {metadata['amplitude_range'][-1]:.3f}"
         )
 
         return circuits

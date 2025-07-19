@@ -8,7 +8,6 @@ from typing import Annotated, Any
 import numpy as np
 import typer
 
-from oqtopus_experiments.circuit.chsh_circuits import create_chsh_circuit
 from oqtopus_experiments.cli.base_cli import (
     BaseExperimentCLI,
     CommonBackendOption,
@@ -60,49 +59,31 @@ class CHSHExperimentCLI(BaseExperimentCLI):
     def generate_circuits(
         self, experiment_instance: CHSHExperiment, **kwargs
     ) -> tuple[list[Any], dict]:
-        """CHSH circuit generation"""
+        """CHSH circuit generation using modern classmethod approach"""
         points = kwargs.get("points", 20)
+        basis_gates = kwargs.get("basis_gates")
+        optimization_level = kwargs.get("optimization_level", 1)
 
-        # Generate circuits and metadata for 4-measurement CHSH
-        phase_range = np.linspace(0, 2 * np.pi, points)
-        angles = {
-            "theta_a0": 0,
-            "theta_a1": np.pi / 2,
-            "theta_b0": np.pi / 4,
-            "theta_b1": -np.pi / 4,
-        }
-        measurements = [
-            (angles["theta_a0"], angles["theta_b0"]),
-            (angles["theta_a0"], angles["theta_b1"]),
-            (angles["theta_a1"], angles["theta_b0"]),
-            (angles["theta_a1"], angles["theta_b1"]),
-        ]
+        # Use the new classmethod for stateless circuit creation
+        circuits, metadata = CHSHExperiment.create_chsh_circuits(
+            phase_points=points,
+            theta_a=0.0,
+            theta_b=np.pi / 4,
+            basis_gates=basis_gates,
+            optimization_level=optimization_level,
+        )
 
-        circuits = []
-        circuit_metadata = []
-        for i, phase_phi in enumerate(phase_range):
-            for j, (theta_a, theta_b) in enumerate(measurements):
-                circuit = create_chsh_circuit(theta_a, theta_b, phase_phi)
-                circuits.append(circuit)
-                circuit_metadata.append(
-                    {
-                        "phase_index": i,
-                        "measurement_index": j,
-                        "phase_phi": phase_phi,
-                        "theta_a": theta_a,
-                        "theta_b": theta_b,
-                    }
-                )
+        self.console.print(
+            f"   Phase range: {metadata['phase_points']} points from 0 to 2π"
+        )
+        self.console.print(
+            f"   Total circuits: {metadata['total_circuits']} (4 measurements per phase)"
+        )
+        self.console.print(
+            f"   Theta A: {metadata['theta_a']:.3f}, Theta B: {metadata['theta_b']:.3f}"
+        )
 
-        self.console.print(f"   Phase range: {points} points from 0 to 2π")
-        self.console.print("   Measurements: 4 combinations per phase")
-
-        return circuits, {
-            "circuit_metadata": circuit_metadata,
-            "phase_range": phase_range,
-            "angles": angles,
-            "measurements": measurements,
-        }
+        return circuits, metadata
 
     def process_results(
         self,

@@ -5,7 +5,6 @@ T2 Echo CLI - QuantumLib T2 Echo Experiment (Hahn Echo/CPMG)
 
 from typing import Annotated, Any
 
-import numpy as np
 import typer
 
 from oqtopus_experiments.cli.base_cli import (
@@ -72,35 +71,32 @@ class T2EchoExperimentCLI(BaseExperimentCLI):
     def generate_circuits(
         self, experiment_instance: T2EchoExperiment, **kwargs
     ) -> tuple[list[Any], dict]:
-        """T2 Echo circuit generation"""
+        """T2 Echo circuit generation using modern classmethod approach"""
         delay_points = kwargs.get("delay_points", 51)
         max_delay = kwargs.get("max_delay", 500000)
         echo_type = kwargs.get("echo_type", "hahn")
         num_echoes = kwargs.get("num_echoes", 1)
+        basis_gates = kwargs.get("basis_gates")
+        optimization_level = kwargs.get("optimization_level", 1)
 
-        # Default delay time configuration
-        delay_times = np.logspace(np.log10(100), np.log10(500 * 1000), num=51)
-
-        circuits = experiment_instance.create_circuits(
+        # Use the new classmethod for stateless circuit creation
+        circuits, metadata = T2EchoExperiment.create_t2_echo_circuits(
             delay_points=delay_points,
             max_delay=max_delay,
             echo_type=echo_type,
             num_echoes=num_echoes,
-            delay_times=delay_times,
+            basis_gates=basis_gates,
+            optimization_level=optimization_level,
         )
 
         self.console.print(
-            f"   Delay range: {delay_points} points from {delay_times[0]:.1f} to {delay_times[-1]:.1f} ns"
+            f"   Delay range: {metadata['delay_points']} points from {metadata['delay_times'][0]:.1f} to {metadata['delay_times'][-1]:.1f} ns"
         )
-        self.console.print(f"   Echo type: {echo_type.upper()} (echoes={num_echoes})")
+        self.console.print(
+            f"   Echo type: {metadata['echo_type'].upper()} (echoes={metadata['num_echoes']})"
+        )
 
-        return circuits, {
-            "delay_times": delay_times,
-            "max_delay": max_delay,
-            "delay_points": delay_points,
-            "echo_type": echo_type,
-            "num_echoes": num_echoes,
-        }
+        return circuits, metadata
 
     def process_results(
         self,
