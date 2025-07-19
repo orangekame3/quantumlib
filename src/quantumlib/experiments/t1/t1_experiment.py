@@ -11,9 +11,10 @@ from typing import Any
 import numpy as np
 
 from ...core.base_experiment import BaseExperiment
+from ...core.parallel_execution import ParallelExecutionMixin
 
 
-class T1Experiment(BaseExperiment):
+class T1Experiment(BaseExperiment, ParallelExecutionMixin):
     """
     T1 decay experiment class
 
@@ -808,30 +809,30 @@ class T1Experiment(BaseExperiment):
         binary_counts = {}
 
         for decimal_key, count in decimal_counts.items():
-            # キーが数値の場合と文字列の場合に対応
+            # Handle both numeric and string keys
             if isinstance(decimal_key, str):
                 try:
                     decimal_value = int(decimal_key)
                 except ValueError:
-                    # すでにバイナリ形式の場合
+                    # Already in binary format
                     binary_counts[decimal_key] = count
                     continue
             else:
                 decimal_value = int(decimal_key)
 
-            # 1量子ビットの場合の変換
+            # Conversion for 1-qubit case
             if decimal_value == 0:
                 binary_key = "0"
             elif decimal_value == 1:
                 binary_key = "1"
             else:
-                # 予期しない値の場合はスキップして警告
+                # Skip unexpected values with warning
                 print(
                     f"⚠️ Unexpected count key: {decimal_key} (decimal value: {decimal_value})"
                 )
                 continue
 
-            # 既存のキーがある場合は加算
+            # Add to existing key if present
             if binary_key in binary_counts:
                 binary_counts[binary_key] += count
             else:
@@ -847,7 +848,7 @@ class T1Experiment(BaseExperiment):
         if total == 0:
             return 0.0
 
-        # カウント取得
+        # Get counts
         if isinstance(list(counts.keys())[0], str):
             n_0 = counts.get("0", 0)
             n_1 = counts.get("1", 0)
@@ -877,16 +878,16 @@ class T1Experiment(BaseExperiment):
         p1s = np.array([d[1] for d in valid_data])
 
         try:
-            # 非線形フィッティングを試行: P(t) = A * exp(-t/T1) + offset
+            # Try nonlinear fitting: P(t) = A * exp(-t/T1) + offset
             from scipy.optimize import curve_fit
 
             def exponential_decay(t, A, T1, offset):
                 return A * np.exp(-t / T1) + offset
 
-            # 初期推定値
+            # Initial estimates
             p0 = [p1s[0], self.expected_t1, 0.0]  # A, T1, offset
 
-            # フィッティング実行
+            # Execute fitting
             popt, pcov = curve_fit(
                 exponential_decay,
                 delays,
@@ -898,25 +899,25 @@ class T1Experiment(BaseExperiment):
 
             t1_fitted = popt[1]
 
-            # フィッティング品質チェック
+            # Check fitting quality
             if pcov is not None and np.all(np.isfinite(pcov)):
-                # 対角成分から標準誤差を計算
+                # Calculate standard error from diagonal elements
                 param_errors = np.sqrt(np.diag(pcov))
                 t1_error = param_errors[1]
 
-                # 相対誤差が50%以下の場合のみ採用
+                # Accept only when relative error is 50% or less
                 if t1_error / t1_fitted < 0.5:
                     return float(t1_fitted)
 
         except (ImportError, RuntimeError, ValueError, TypeError):
-            # scipyが利用できない場合やフィッティングが失敗した場合は線形回帰にフォールバック
+            # Fallback to linear regression when scipy is unavailable or fitting fails
             pass
 
         try:
-            # フォールバック: 線形回帰によるフィッティング
+            # Fallback: fitting using linear regression
             log_p1s = np.log(p1s)
 
-            # 線形フィッティング
+            # Linear fitting
             coeffs = np.polyfit(delays, log_p1s, 1)
             slope = coeffs[0]
 
@@ -963,10 +964,10 @@ class T1Experiment(BaseExperiment):
             def exponential_decay(t, A, T1, offset):
                 return A * np.exp(-t / T1) + offset
 
-            # 初期推定値
+            # Initial estimates
             p0 = [p1s[0], self.expected_t1, 0.0]
 
-            # フィッティング実行
+            # Execute fitting
             popt, pcov = curve_fit(
                 exponential_decay,
                 delays,
@@ -1067,10 +1068,10 @@ class T1Experiment(BaseExperiment):
             def z_exponential_decay(t, A, T1, offset):
                 return A * np.exp(-t / T1) + offset
 
-            # 初期推定値: A≈-1 (|1⟩から開始), T1≈expected, offset≈0
+            # Initial estimates: A≈-1 (|1⟩から開始), T1≈expected, offset≈0
             p0 = [z_vals[0], self.expected_t1, 0.0]
 
-            # フィッティング実行
+            # Execute fitting
             popt, pcov = curve_fit(
                 z_exponential_decay,
                 delays,

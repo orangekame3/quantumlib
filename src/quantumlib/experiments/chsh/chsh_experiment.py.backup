@@ -5,7 +5,6 @@ Inherits from BaseExperiment and provides implementation specialized for CHSH ex
 """
 
 import time
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Any
 
 import numpy as np
@@ -177,7 +176,7 @@ class CHSHExperiment(BaseExperiment, ParallelExecutionMixin):
                         and device_results[circuit_idx] is not None
                     ):
                         result = device_results[circuit_idx]
-                        # Check if result was successful
+                        # 結果が成功しているかチェック
                         if result and result.get("success", False):
                             counts = result.get("counts", {})
                             if counts:
@@ -235,7 +234,7 @@ class CHSHExperiment(BaseExperiment, ParallelExecutionMixin):
         angles: dict[str, float],
     ) -> dict[str, Any]:
         """
-        Create CHSH analysis results (T1/Ramsey pattern)
+        CHSH解析結果作成（T1/Ramseyパターン）
         """
         analysis = {
             "experiment_info": {
@@ -277,7 +276,7 @@ class CHSHExperiment(BaseExperiment, ParallelExecutionMixin):
         self, device_results: list[dict[str, Any]], phase_range: np.ndarray
     ) -> dict[str, Any]:
         """
-        Single device result analysis
+        単一デバイス結果解析
         """
         S_values = []
         expectations = []
@@ -286,11 +285,11 @@ class CHSHExperiment(BaseExperiment, ParallelExecutionMixin):
             if result and result["success"]:
                 counts = result["counts"]
 
-                # Calculate expectation value
+                # 期待値計算
                 expectation = self._calculate_expectation_value(counts)
                 expectations.append(expectation)
 
-                # Calculate S value (simplified version)
+                # S値計算（簡易版）
                 phi = phase_range[i] if i < len(phase_range) else 0
                 S = 2 * np.sqrt(2) * expectation * np.cos(phi)
                 S_values.append(S)
@@ -298,7 +297,7 @@ class CHSHExperiment(BaseExperiment, ParallelExecutionMixin):
                 expectations.append(np.nan)
                 S_values.append(np.nan)
 
-        # Calculate statistics
+        # 統計計算
         valid_s = np.array([s for s in S_values if not np.isnan(s)])
 
         return {
@@ -316,13 +315,13 @@ class CHSHExperiment(BaseExperiment, ParallelExecutionMixin):
 
     def _calculate_expectation_value(self, counts: dict[str, int]) -> float:
         """
-        Calculate CHSH expectation value
+        CHSH期待値計算
         """
         total = sum(counts.values())
         if total == 0:
             return 0.0
 
-        # CHSH expectation value: E = (N_00 + N_11 - N_01 - N_10) / N_total
+        # CHSH期待値: E = (N_00 + N_11 - N_01 - N_10) / N_total
         n_00 = counts.get("00", 0)
         n_11 = counts.get("11", 0)
         n_01 = counts.get("01", 0)
@@ -335,7 +334,7 @@ class CHSHExperiment(BaseExperiment, ParallelExecutionMixin):
         self, device_results: dict[str, dict[str, Any]]
     ) -> dict[str, Any]:
         """
-        Inter-device comparison analysis
+        デバイス間比較分析
         """
         if len(device_results) < 2:
             return {"note": "Multiple devices required for comparison"}
@@ -357,9 +356,9 @@ class CHSHExperiment(BaseExperiment, ParallelExecutionMixin):
         self, results: dict[str, Any], metadata: dict[str, Any] = None
     ) -> str:
         """
-        Save CHSH experiment data
+        CHSH実験データ保存
         """
-        # CHSH experiment-specific save format
+        # CHSH実験専用の保存形式
         chsh_data = {
             "experiment_type": "CHSH_Bell_Inequality",
             "experiment_timestamp": time.time(),
@@ -373,19 +372,19 @@ class CHSHExperiment(BaseExperiment, ParallelExecutionMixin):
             "metadata": metadata or {},
         }
 
-        # Save main results
+        # メイン結果保存
         main_file = self.data_manager.save_data(chsh_data, "chsh_experiment_results")
 
-        # Save additional files
+        # 追加ファイル保存
         if "device_results" in results:
-            # Device-specific summary
+            # デバイス別サマリー
             device_summary = {
                 device: analysis["statistics"]
                 for device, analysis in results["device_results"].items()
             }
             self.data_manager.save_data(device_summary, "device_performance_summary")
 
-            # S values only (for plotting)
+            # S値のみ（プロット用）
             s_values_data = {
                 "phase_range": self.experiment_params["phase_range"],
                 "theoretical_S": results["theoretical_values"]["S_theoretical"],
@@ -398,7 +397,7 @@ class CHSHExperiment(BaseExperiment, ParallelExecutionMixin):
 
         return main_file
 
-    # Convenience methods specific to CHSH experiments
+    # CHSH実験専用の便利メソッド
     def run_phase_scan(
         self,
         devices: list[str] = ["qulacs"],
@@ -409,7 +408,7 @@ class CHSHExperiment(BaseExperiment, ParallelExecutionMixin):
         **kwargs,
     ) -> dict[str, Any]:
         """
-        Execute phase scan CHSH experiment
+        位相スキャンCHSH実験実行
         """
         return self.run_experiment(
             devices=devices,
@@ -428,11 +427,11 @@ class CHSHExperiment(BaseExperiment, ParallelExecutionMixin):
         **kwargs,
     ) -> dict[str, Any]:
         """
-        Parallel execution of CHSH experiment (preserving phase order, T1/Ramsey standard pattern)
+        CHSH実験の並列実行（phase順序を保持、T1/Ramsey標準パターン）
         """
         print(f"🔬 Running CHSH experiment with {parallel_workers} parallel workers")
 
-        # Create circuits
+        # 回路作成
         circuits = self.create_circuits(**kwargs)
         phase_range = self.experiment_params["phase_range"]
 
@@ -440,17 +439,17 @@ class CHSHExperiment(BaseExperiment, ParallelExecutionMixin):
             f"   📊 {len(circuits)} circuits × {len(devices)} devices = {len(circuits) * len(devices)} jobs"
         )
 
-        # Parallel execution (preserving order)
+        # 並列実行（順序保持）
         job_data = self._submit_chsh_circuits_parallel_with_order(
             circuits, devices, shots, parallel_workers
         )
 
-        # Collect results (preserving order)
+        # 結果収集（順序保持）
         raw_results = self._collect_chsh_results_parallel_with_order(
             job_data, parallel_workers
         )
 
-        # Analyze results (with error handling)
+        # 結果解析（エラーハンドリング付き）
         try:
             analysis = self.analyze_results(raw_results)
         except Exception as e:
@@ -475,9 +474,9 @@ class CHSHExperiment(BaseExperiment, ParallelExecutionMixin):
         **kwargs,
     ) -> dict[str, Any]:
         """
-        Execute CHSH experiment (following base_cli unified flow)
+        CHSH実験実行（base_cliの統一フローに従う）
         """
-        # Since base_cli calls parallel methods directly, only basic result collection is needed here
+        # base_cliが直接並列メソッドを呼び出すため、ここでは基本的な結果収集のみ
         print("⚠️ run_experiment called directly - use CLI framework instead")
         return self.run_chsh_experiment_parallel(
             devices=devices, shots=shots, parallel_workers=parallel_workers, **kwargs
@@ -492,8 +491,8 @@ class CHSHExperiment(BaseExperiment, ParallelExecutionMixin):
         **kwargs,
     ) -> dict[str, Any]:
         """
-        Execute 4-measurement CHSH method (standard quantum Bell inequality method)
-        Measure ⟨A₀B₀⟩, ⟨A₀B₁⟩, ⟨A₁B₀⟩, ⟨A₁B₁⟩ individually and calculate S = E₁ + E₂ + E₃ - E₄
+        4測定CHSH方式の実行（量子ベル不等式標準方式）
+        ⟨A₀B₀⟩, ⟨A₀B₁⟩, ⟨A₁B₀⟩, ⟨A₁B₁⟩ を個別測定してS = E₁ + E₂ + E₃ - E₄計算
         """
         # Standard CHSH measurement angles
         angles = {
@@ -513,7 +512,7 @@ class CHSHExperiment(BaseExperiment, ParallelExecutionMixin):
             (angles["theta_a1"], angles["theta_b1"]),  # ⟨A₁B₁⟩
         ]
 
-        # Batch circuit creation: create all phase×measurement combinations at once
+        # バッチ回路作成：全位相×全測定の組み合わせを一括作成
         all_circuits = []
         circuit_metadata = []
 
@@ -535,7 +534,7 @@ class CHSHExperiment(BaseExperiment, ParallelExecutionMixin):
             f"Creating batch circuits: {phase_points} phases × 4 measurements = {len(all_circuits)} circuits"
         )
 
-        # Parallel submission and collection of batch circuits
+        # バッチ回路の並列投入と収集
         job_data = self._submit_chsh_circuits_parallel_with_order(
             all_circuits, devices, shots, parallel_workers
         )
@@ -544,17 +543,17 @@ class CHSHExperiment(BaseExperiment, ParallelExecutionMixin):
             job_data, parallel_workers
         )
 
-        # Structure results for CHSH analysis
+        # 結果を構造化してCHSH解析
         processed_results = self._process_4_measurement_results(
             raw_results, circuit_metadata, phase_range, measurements, devices
         )
 
-        # Create standard analysis results
+        # 標準解析結果作成
         analysis = self._create_4_measurement_analysis(
             phase_range, processed_results, angles
         )
 
-        # Set experiment_params (for data saving)
+        # experiment_paramsをセット（データ保存用）
         self.experiment_params = {
             "theta_a": 0,
             "theta_b": np.pi / 4,
@@ -577,7 +576,7 @@ class CHSHExperiment(BaseExperiment, ParallelExecutionMixin):
         **kwargs,
     ) -> dict[str, Any]:
         """
-        Execute angle comparison CHSH experiment
+        角度比較CHSH実験実行
         """
         if angle_pairs is None:
             angle_pairs = [(0, np.pi / 4), (np.pi / 4, 0), (np.pi / 8, np.pi / 8)]
@@ -589,11 +588,11 @@ class CHSHExperiment(BaseExperiment, ParallelExecutionMixin):
                 f"\n🔬 Angle pair {i + 1}/{len(angle_pairs)}: θ_A={theta_a:.3f}, θ_B={theta_b:.3f}"
             )
 
-            # Experiment at single phase point
+            # 単一位相点での実験
             result = self.run_experiment(
                 devices=devices,
                 shots=shots,
-                phase_range=[0],  # φ=0 only
+                phase_range=[0],  # φ=0のみ
                 theta_a=theta_a,
                 theta_b=theta_b,
                 **kwargs,
@@ -602,7 +601,7 @@ class CHSHExperiment(BaseExperiment, ParallelExecutionMixin):
             result["angle_pair"] = (theta_a, theta_b)
             all_results.append(result)
 
-        # Integrated results
+        # 統合結果
         return {
             "experiment_type": "CHSH_Angle_Comparison",
             "angle_pairs": angle_pairs,
@@ -614,7 +613,7 @@ class CHSHExperiment(BaseExperiment, ParallelExecutionMixin):
         self, results: list[dict[str, Any]]
     ) -> dict[str, Any]:
         """
-        Summary of angle comparison results
+        角度比較結果のサマリー
         """
         summary = {
             "angle_performance": {},
@@ -651,14 +650,14 @@ class CHSHExperiment(BaseExperiment, ParallelExecutionMixin):
         self, circuits: list[Any], devices: list[str], shots: int, parallel_workers: int
     ) -> dict[str, list[dict]]:
         """
-        Parallel submission of CHSH circuits (using ParallelExecutionMixin)
+        CHSH回路の並列投入（ParallelExecutionMixin使用）
         """
         print(f"Enhanced CHSH parallel submission: {parallel_workers} workers")
 
-        # Emergency response when experiment_params is not set
+        # experiment_paramsが設定されていない場合の緊急対応
         if not hasattr(self, "experiment_params") or not self.experiment_params:
             print("⚠️ experiment_params not set, creating default...")
-            phase_points = len(circuits) // 4  # Circuit count ÷ 4 since 4 measurements
+            phase_points = len(circuits) // 4  # 4測定なので回路数÷4
             phase_range = np.linspace(0, 2 * np.pi, phase_points)
             self.experiment_params = {
                 "phase_range": phase_range.tolist(),
@@ -670,9 +669,9 @@ class CHSHExperiment(BaseExperiment, ParallelExecutionMixin):
                 circuits, devices, shots, parallel_workers
             )
 
-        # Use ParallelExecutionMixin for parallel execution
+        # ParallelExecutionMixinを使用して並列実行
         def submit_single_chsh_circuit(device, circuit, shots, circuit_idx):
-            """Submit a single CHSH circuit"""
+            """単一のCHSH回路を投入"""
             try:
                 job_id = self.submit_circuit_to_oqtopus(circuit, shots, device)
                 if job_id:
@@ -773,14 +772,14 @@ class CHSHExperiment(BaseExperiment, ParallelExecutionMixin):
     def _collect_chsh_results_parallel_with_order(
         self, job_data: dict[str, list[dict]], parallel_workers: int
     ) -> dict[str, list[dict]]:
-        """Parallel collection of CHSH results (using ParallelExecutionMixin)"""
+        """CHSH結果の並列収集（ParallelExecutionMixin使用）"""
 
-        # Use ParallelExecutionMixin for parallel execution
+        # ParallelExecutionMixinを使用して並列実行
         def collect_single_chsh_result(device, job_info, circuit_idx):
-            """Collect a single CHSH result"""
+            """単一のCHSH結果を収集"""
             job_id = job_info.get("job_id")
             shots = job_info.get("shots")
-
+            
             try:
                 result = self.get_job_result(job_id)
                 if result and result.get("status") == "completed":
@@ -793,12 +792,12 @@ class CHSHExperiment(BaseExperiment, ParallelExecutionMixin):
                             "execution_time": result.get("execution_time", 0),
                             "shots": shots or sum(counts.values()) if counts else 0,
                         }
-
+                        
                         phase_idx = circuit_idx // 4
                         meas_idx = circuit_idx % 4
                         phase_phi = (
                             self.experiment_params["phase_range"][phase_idx]
-                            if hasattr(self, "experiment_params") and
+                            if hasattr(self, "experiment_params") and 
                                self.experiment_params and
                                phase_idx < len(self.experiment_params["phase_range"])
                             else 0
@@ -869,10 +868,10 @@ class CHSHExperiment(BaseExperiment, ParallelExecutionMixin):
         def collect_single_chsh_result(args):
             job_id, device, circuit_idx = args
             try:
-                # Use BaseExperiment's get_oqtopus_result directly (no polling)
+                # 直接BaseExperimentのget_oqtopus_resultを使用（ポーリングなし）
                 result = self.get_oqtopus_result(job_id, timeout_minutes=5)
 
-                # Debug information output (first 3 times only)
+                # デバッグ情報出力（最初の3回のみ）
                 if not hasattr(self, "_chsh_debug_count"):
                     self._chsh_debug_count = 0
                 if self._chsh_debug_count < 3:
@@ -881,29 +880,29 @@ class CHSHExperiment(BaseExperiment, ParallelExecutionMixin):
                     )
                     self._chsh_debug_count += 1
 
-                # Flexible success determination (matching Ramsey and T1 patterns)
+                # 柔軟な成功判定（RamseyやT1パターンに合わせる）
                 success_conditions = [
-                    result and result.get("status") == "succeeded",  # OQTOPUS standard
+                    result and result.get("status") == "succeeded",  # OQTOPUS標準
                     result and result.get("success", False),  # BaseExperiment legacy
-                    result and "counts" in result,  # When counts are directly available
+                    result and "counts" in result,  # 直接countsがある場合
                 ]
 
                 if any(success_conditions):
-                    # Try multiple methods to obtain measurement results
+                    # 複数の方法で測定結果を取得を試行
                     counts = None
                     shots = 0
 
-                    # Method 1: When BaseExperiment's get_oqtopus_result returns counts directly
+                    # 方法1: BaseExperimentのget_oqtopus_resultが直接countsを返す場合
                     if "counts" in result:
                         counts = result["counts"]
                         shots = result.get("shots", 0)
                         print(f"🔍 CHSH[{circuit_idx}]: Direct counts found = {counts}")
 
-                    # Method 2: Get from result structure within job_info
+                    # 方法2: job_info内のresult構造から取得
                     if not counts:
                         job_info = result.get("job_info", {})
                         if isinstance(job_info, dict):
-                            # Explore OQTOPUS result structure
+                            # OQTOPUS result構造を探索
                             sampling_result = job_info.get("result", {}).get(
                                 "sampling", {}
                             )
@@ -913,7 +912,7 @@ class CHSHExperiment(BaseExperiment, ParallelExecutionMixin):
                                     f"🔍 CHSH[{circuit_idx}]: job_info.result.sampling counts = {counts}"
                                 )
 
-                    # Method 3: When job_info itself is in result format
+                    # 方法3: job_info自体がresult形式の場合
                     if not counts and "job_info" in result:
                         job_info = result["job_info"]
                         if isinstance(job_info, dict) and "job_info" in job_info:
@@ -932,10 +931,10 @@ class CHSHExperiment(BaseExperiment, ParallelExecutionMixin):
                                     )
 
                     if counts:
-                        # Convert successful data to standard format
+                        # 成功データを標準形式に変換
                         processed_result = {
                             "success": True,
-                            "counts": dict(counts),  # Convert Counter to dictionary
+                            "counts": dict(counts),  # Counterを辞書に変換
                             "status": result.get("status", "success"),
                             "execution_time": result.get("execution_time", 0),
                             "shots": shots or sum(counts.values()) if counts else 0,
@@ -948,12 +947,12 @@ class CHSHExperiment(BaseExperiment, ParallelExecutionMixin):
                         print(
                             f"⚠️ {device}[{circuit_idx}]: {job_id[:8]}... no measurement data in any structure"
                         )
-                        # Display part of result structure for debugging
+                        # デバッグ用に結果構造の一部を表示
                         if result:
                             print(f"   Available keys: {list(result.keys())}")
                         return device, None, job_id, circuit_idx, False
                 else:
-                    # When job failed
+                    # ジョブ失敗の場合
                     status = result.get("status", "unknown") if result else "no_result"
                     print(
                         f"⚠️ {device}[{circuit_idx}]: {job_id[:8]}... failed ({status})"
@@ -1000,10 +999,10 @@ class CHSHExperiment(BaseExperiment, ParallelExecutionMixin):
                         f"✅ {device}[{circuit_idx}] (φ={phase_phi:.3f}, meas{meas_idx}): {job_id[:8]}... collected ({completed_jobs}/{total_jobs})"
                     )
                 else:
-                    # Failure cases already logged in individual methods
+                    # 失敗ケースは既に個別メソッド内でログ出力済み
                     pass
 
-                # Display progress summary every 20%
+                # 進捗サマリーを20%ごとに表示
                 progress_percent = (completed_jobs * 100) // total_jobs
                 if (
                     progress_percent >= last_progress_percent + 20
@@ -1014,7 +1013,7 @@ class CHSHExperiment(BaseExperiment, ParallelExecutionMixin):
                     )
                     last_progress_percent = progress_percent
 
-        # Final results summary
+        # 最終結果サマリー
         total_successful = sum(
             1
             for device_results in all_results.values()
@@ -1087,7 +1086,7 @@ class CHSHExperiment(BaseExperiment, ParallelExecutionMixin):
                         and device_results[circuit_idx] is not None
                     ):
                         result = device_results[circuit_idx]
-                        # Check if result was successful
+                        # 結果が成功しているかチェック
                         if result and result.get("success", False):
                             counts = result.get("counts", {})
                             if counts:
@@ -1149,26 +1148,26 @@ class CHSHExperiment(BaseExperiment, ParallelExecutionMixin):
 
     def _calculate_expectation_value_oqtopus_compatible(self, counts: dict) -> float:
         """Calculate CHSH expectation value compatible with OQTOPUS format (enhanced with Ramsey/T1 patterns)"""
-        # Convert OQTOPUS decimal counts to binary format (using Ramsey and T1 patterns)
+        # OQTOPUSの10進数countsを2進数形式に変換（RamseyとT1のパターンを使用）
         binary_counts = self._convert_decimal_to_binary_counts_chsh(counts)
 
         total = sum(binary_counts.values())
         if total == 0:
             return 0.0
 
-        # Display debug information (first time only)
+        # デバッグ情報表示（初回のみ）
         if not hasattr(self, "_chsh_counts_debug_shown"):
             print(f"🔍 CHSH Raw decimal counts: {dict(counts)}")
             print(f"🔍 CHSH Converted binary counts: {dict(binary_counts)}")
             self._chsh_counts_debug_shown = True
 
-        # Calculate expectation value from 2-qubit measurement results
+        # 2量子ビット測定結果から期待値計算
         n_00 = binary_counts.get("00", 0)
         n_11 = binary_counts.get("11", 0)
         n_01 = binary_counts.get("01", 0)
         n_10 = binary_counts.get("10", 0)
 
-        # CHSH expectation value: E = (N_00 + N_11 - N_01 - N_10) / N_total
+        # CHSH期待値: E = (N_00 + N_11 - N_01 - N_10) / N_total
         expectation = (n_00 + n_11 - n_01 - n_10) / total
         return expectation
 
@@ -1176,29 +1175,29 @@ class CHSHExperiment(BaseExperiment, ParallelExecutionMixin):
         self, decimal_counts: dict[str, int]
     ) -> dict[str, int]:
         """
-        Convert OQTOPUS decimal counts to binary format (for CHSH - 2 qubits)
+        OQTOPUSの10進数countsを2進数形式に変換（CHSH用 - 2量子ビット）
 
-        For 2-qubit case:
-        0 -> "00"  (|00⟩ state)
-        1 -> "01"  (|01⟩ state)
-        2 -> "10"  (|10⟩ state)
-        3 -> "11"  (|11⟩ state)
+        2量子ビットの場合:
+        0 -> "00"  (|00⟩状態)
+        1 -> "01"  (|01⟩状態)
+        2 -> "10"  (|10⟩状態)
+        3 -> "11"  (|11⟩状態)
         """
         binary_counts = {}
 
         for decimal_key, count in decimal_counts.items():
-            # Handle both numeric and string keys
+            # キーが数値の場合と文字列の場合に対応
             if isinstance(decimal_key, str):
                 try:
                     decimal_value = int(decimal_key)
                 except ValueError:
-                    # Already in binary format
+                    # すでにバイナリ形式の場合
                     binary_counts[decimal_key] = count
                     continue
             else:
                 decimal_value = int(decimal_key)
 
-            # Conversion for 2-qubit case
+            # 2量子ビットの場合の変換
             if decimal_value == 0:
                 binary_key = "00"
             elif decimal_value == 1:
@@ -1208,13 +1207,13 @@ class CHSHExperiment(BaseExperiment, ParallelExecutionMixin):
             elif decimal_value == 3:
                 binary_key = "11"
             else:
-                # Skip unexpected values with warning
+                # 予期しない値の場合はスキップして警告
                 print(
                     f"⚠️ Unexpected CHSH count key: {decimal_key} (decimal value: {decimal_value})"
                 )
                 continue
 
-            # Add to existing key if present
+            # 既存のキーがある場合は加算
             if binary_key in binary_counts:
                 binary_counts[binary_key] += count
             else:

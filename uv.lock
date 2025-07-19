@@ -2514,6 +2514,20 @@ wheels = [
 ]
 
 [[package]]
+name = "qctrl-visualizer"
+version = "8.0.2"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "matplotlib" },
+    { name = "numpy" },
+    { name = "scipy" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/32/cc/a242be1ba292fd13eeeef9e771595c3ef57c9145a855840b4e1a8d4d62cc/qctrl_visualizer-8.0.2.tar.gz", hash = "sha256:dc5988cb6d116ee679e1c3409008173ba99cda2393cbae655a0d760570af39f0", size = 38710 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/d2/31/8449a7c898a1bd0a16a13263daf80ab0ecca446d614140eae87c6ee1679e/qctrl_visualizer-8.0.2-py3-none-any.whl", hash = "sha256:5c73e74f684090d3a0b7942ec68773804d3733d7f03622f9b2f46a462d4fdba5", size = 48820 },
+]
+
+[[package]]
 name = "qiskit"
 version = "1.2.4"
 source = { registry = "https://pypi.org/simple" }
@@ -2625,6 +2639,7 @@ dependencies = [
     { name = "pyquil" },
     { name = "python-dateutil" },
     { name = "pyyaml" },
+    { name = "qctrl-visualizer" },
     { name = "qiskit" },
     { name = "qiskit-aer" },
     { name = "quri-parts-oqtopus" },
@@ -2664,6 +2679,7 @@ requires-dist = [
     { name = "pyquil", specifier = ">=4.14.0" },
     { name = "python-dateutil", specifier = ">=2.8.0" },
     { name = "pyyaml", specifier = ">=6.0.0" },
+    { name = "qctrl-visualizer", specifier = ">=8.0.2" },
     { name = "qiskit", specifier = "<=1.3.0" },
     { name = "qiskit-aer", specifier = ">=0.13.0" },
     { name = "quri-parts-oqtopus", specifier = ">=1.0.3" },

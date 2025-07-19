@@ -47,29 +47,29 @@ class RabiExperiment(BaseExperiment):
 
     def create_circuits(self, **kwargs) -> list[Any]:
         """
-        Rabi実験回路作成
+        Create Rabi experiment circuits
 
         Args:
-            amplitude_points: 振幅点数 (default: 20)
-            max_amplitude: 最大振幅 (default: 2π)
-            drive_time: ドライブ時間 (default: 1.0)
-            drive_frequency: ドライブ周波数 (default: 0.0)
+            amplitude_points: Number of amplitude points (default: 20)
+            max_amplitude: Maximum amplitude (default: 2π)
+            drive_time: Drive time (default: 1.0)
+            drive_frequency: Drive frequency (default: 0.0)
 
         Returns:
-            Rabi回路リスト
+            List of Rabi circuits
         """
         amplitude_points = kwargs.get("amplitude_points", 20)
         max_amplitude = kwargs.get("max_amplitude", 2 * np.pi)
         drive_time = kwargs.get("drive_time", 1.0)
         drive_frequency = kwargs.get("drive_frequency", 0.0)
 
-        # 振幅範囲
+        # Amplitude range
         if "amplitude_range" in kwargs:
             amplitude_range = np.array(kwargs["amplitude_range"])
         else:
             amplitude_range = np.linspace(0, max_amplitude, amplitude_points)
 
-        # メタデータ保存
+        # Save metadata
         self.experiment_params = {
             "amplitude_range": amplitude_range.tolist(),
             "drive_time": drive_time,
@@ -95,13 +95,13 @@ class RabiExperiment(BaseExperiment):
         self, results: dict[str, list[dict[str, Any]]], **kwargs
     ) -> dict[str, Any]:
         """
-        Rabi実験結果解析
+        Analyze Rabi experiment results
 
         Args:
-            results: 生測定結果
+            results: Raw measurement results
 
         Returns:
-            Rabi解析結果
+            Rabi analysis results
         """
         if not results:
             return {"error": "No results to analyze"}
@@ -135,7 +135,7 @@ class RabiExperiment(BaseExperiment):
             )
             analysis["device_results"][device] = device_analysis
 
-            # Rabi周波数推定
+            # Estimate Rabi frequency
             rabi_freq = self._estimate_rabi_frequency(
                 device_analysis["excitation_probabilities"], amplitude_range
             )
@@ -143,7 +143,7 @@ class RabiExperiment(BaseExperiment):
 
             print(f"{device}: Estimated Rabi frequency = {rabi_freq:.3f} rad/amplitude")
 
-        # デバイス間比較
+        # Inter-device comparison
         analysis["comparison"] = self._compare_devices(analysis["device_results"])
 
         return analysis
@@ -152,7 +152,7 @@ class RabiExperiment(BaseExperiment):
         self, device_results: list[dict[str, Any]], amplitude_range: np.ndarray
     ) -> dict[str, Any]:
         """
-        単一デバイス結果解析
+        Single device result analysis
         """
         excitation_probs = []
 
@@ -160,7 +160,7 @@ class RabiExperiment(BaseExperiment):
             if result and result["success"]:
                 counts = result["counts"]
 
-                # 励起確率計算
+                # Calculate excitation probability
                 excitation_prob = self._calculate_excitation_probability(counts)
                 excitation_probs.append(excitation_prob)
             else:

@@ -11,9 +11,10 @@ from typing import Any
 import numpy as np
 
 from ...core.base_experiment import BaseExperiment
+from ...core.parallel_execution import ParallelExecutionMixin
 
 
-class RamseyExperiment(BaseExperiment):
+class RamseyExperiment(BaseExperiment, ParallelExecutionMixin):
     """
     Ramsey oscillation experiment class
 
@@ -156,7 +157,7 @@ class RamseyExperiment(BaseExperiment):
         self, circuits: list[Any], devices: list[str], shots: int, parallel_workers: int
     ) -> dict[str, list[dict]]:
         """
-        Parallel submission of Ramsey circuits (preserving order CHSH-style)
+        Parallel submission of Ramsey circuits (using ParallelExecutionMixin)
         """
         print(f"Enhanced Ramsey parallel submission: {parallel_workers} workers")
 
@@ -165,73 +166,37 @@ class RamseyExperiment(BaseExperiment):
                 circuits, devices, shots, parallel_workers
             )
 
-        # Data structure for preserving order
-        all_job_data = {device: [None] * len(circuits) for device in devices}
-
-        # Create circuit and device pairs (preserving delay_time order)
-        circuit_device_pairs = []
-        for circuit_idx, circuit in enumerate(circuits):
-            for device in devices:
-                circuit_device_pairs.append((circuit_idx, circuit, device))
-
-        def submit_single_ramsey_circuit(args):
-            circuit_idx, circuit, device = args
+        # Use ParallelExecutionMixin for parallel execution
+        def submit_single_ramsey_circuit(device, circuit, shots, circuit_idx):
+            """Submit a single Ramsey circuit"""
             try:
                 job_id = self.submit_circuit_to_oqtopus(circuit, shots, device)
                 if job_id:
-                    return device, job_id, circuit_idx, True
+                    return {
+                        "job_id": job_id,
+                        "device": device,
+                        "circuit_idx": circuit_idx,
+                        "shots": shots,
+                        "submitted": True,
+                        "submission_time": time.time(),
+                    }
                 else:
-                    return device, None, circuit_idx, False
+                    return None
             except Exception as e:
                 delay_time = self.experiment_params["delay_times"][circuit_idx]
                 print(
                     f"Ramsey Circuit {circuit_idx} (τ={delay_time:.0f}ns) → {device}: {e}"
                 )
-                return device, None, circuit_idx, False
+                return None
 
-        # Execute parallel submission
-        with ThreadPoolExecutor(max_workers=parallel_workers) as executor:
-            futures = [
-                executor.submit(submit_single_ramsey_circuit, args)
-                for args in circuit_device_pairs
-            ]
-
-            for future in as_completed(futures):
-                device, job_id, circuit_idx, success = future.result()
-                if success and job_id:
-                    all_job_data[device][circuit_idx] = {
-                        "job_id": job_id,
-                        "circuit_index": circuit_idx,
-                        "delay_time": self.experiment_params["delay_times"][
-                            circuit_idx
-                        ],
-                        "submitted": True,
-                    }
-                    delay_time = self.experiment_params["delay_times"][circuit_idx]
-                    print(
-                        f"Ramsey Circuit {circuit_idx + 1} (τ={delay_time:.0f}ns) → {device}: {job_id[:8]}..."
-                    )
-                else:
-                    all_job_data[device][circuit_idx] = {
-                        "job_id": None,
-                        "circuit_index": circuit_idx,
-                        "delay_time": self.experiment_params["delay_times"][
-                            circuit_idx
-                        ],
-                        "submitted": False,
-                    }
-
-        for device in devices:
-            successful_jobs = sum(
-                1
-                for job_data in all_job_data[device]
-                if job_data and job_data["submitted"]
-            )
-            print(
-                f"✅ {device}: {successful_jobs} Ramsey jobs submitted (order preserved)"
-            )
-
-        return all_job_data
+        return self.submit_circuits_parallel_with_order(
+            circuits=circuits,
+            devices=devices,
+            shots=shots,
+            parallel_workers=parallel_workers,
+            submit_function=submit_single_ramsey_circuit,
+            progress_name="Ramsey Submission"
+        )
 
     def _submit_ramsey_circuits_locally_parallel(
         self, circuits: list[Any], devices: list[str], shots: int, parallel_workers: int
@@ -379,14 +344,14 @@ class RamseyExperiment(BaseExperiment):
                     if not counts:
                         job_info = result.get("job_info", {})
                         if isinstance(job_info, dict):
-                            # OQTOPUS result構造を探索
+                            # Explore OQTOPUS result structure
                             sampling_result = job_info.get("result", {}).get(
                                 "sampling", {}
                             )
                             if sampling_result:
                                 counts = sampling_result.get("counts", {})
 
-                    # 方法3: job_info自体がresult形式の場合
+                    # Method 3: When job_info itself is in result format
                     if not counts and "job_info" in result:
                         job_info = result["job_info"]
                         if isinstance(job_info, dict) and "job_info" in job_info:
@@ -399,10 +364,10 @@ class RamseyExperiment(BaseExperiment):
                                     counts = result_data["counts"]
 
                     if counts:
-                        # 成功データを標準形式に変換
+                        # Convert successful data to standard format
                         processed_result = {
                             "success": True,
-                            "counts": dict(counts),  # Counterを辞書に変換
+                            "counts": dict(counts),  # Convert Counter to dictionary
                             "status": result.get("status"),
                             "execution_time": result.get("execution_time", 0),
                             "shots": shots or sum(counts.values()) if counts else 0,
@@ -415,10 +380,10 @@ class RamseyExperiment(BaseExperiment):
                         )
                         return device, None, job_id, circuit_idx, False
                 else:
-                    # ジョブ失敗の場合
+                    # When job failed
                     delay_time = self.experiment_params["delay_times"][circuit_idx]
                     status = result.get("status", "unknown") if result else "no_result"
-                    # より詳細な失敗情報を表示
+                    # Display more detailed failure information
                     message = ""
                     if result:
                         job_info = result.get("job_info", {})
@@ -459,10 +424,10 @@ class RamseyExperiment(BaseExperiment):
                         f"✅ {device}[{circuit_idx}] (τ={delay_time:.0f}ns): {job_id[:8]}... collected ({completed_jobs}/{total_jobs})"
                     )
                 else:
-                    # 失敗ケースは既に個別メソッド内でログ出力済み
+                    # Failure cases already logged in individual methods
                     pass
 
-                # 進捗サマリーを20%ごとに表示
+                # Display progress summary every 20%
                 progress_percent = (completed_jobs * 100) // total_jobs
                 if (
                     progress_percent >= last_progress_percent + 20
@@ -473,7 +438,7 @@ class RamseyExperiment(BaseExperiment):
                     )
                     last_progress_percent = progress_percent
 
-        # 最終結果サマリー
+        # Final results summary
         total_successful = sum(
             1
             for device_results in all_results.values()
@@ -494,7 +459,7 @@ class RamseyExperiment(BaseExperiment):
             f"🎉 Ramsey Collection Complete: {total_successful}/{total_attempted} successful ({success_rate:.1f}%)"
         )
 
-        # 結果統計の表示と失敗ジョブの報告
+        # Display result statistics and report failed jobs
         for device in job_data.keys():
             successful = sum(1 for r in all_results[device] if r is not None)
             total = len(job_data[device])
@@ -519,15 +484,15 @@ class RamseyExperiment(BaseExperiment):
         self, job_id: str, timeout_minutes: int = 5, poll_interval: float = 2.0
     ):
         """
-        ジョブが完了するまでポーリング
+        Poll until job completion
 
         Args:
-            job_id: ジョブID
-            timeout_minutes: タイムアウト時間（分）
-            poll_interval: ポーリング間隔（秒）
+            job_id: Job ID
+            timeout_minutes: Timeout duration (minutes)
+            poll_interval: Polling interval (seconds)
 
         Returns:
-            完了したジョブの結果、またはNone
+            Completed job result, or None
         """
         import time
 
@@ -559,7 +524,7 @@ class RamseyExperiment(BaseExperiment):
                 if status in ["succeeded", "failed", "cancelled"]:
                     return result
                 elif status in ["running", "submitted", "pending"]:
-                    # まだ実行中 - 続行
+                    # Still running - continue
                     time.sleep(poll_interval)
                     continue
                 else:
