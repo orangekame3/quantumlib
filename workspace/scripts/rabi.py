@@ -22,7 +22,7 @@ from oqtopus_experiments.cli.base_cli import (
     DeviceType,
     ExperimentBackend,
 )
-from oqtopus_experiments.experiments.rabi.rabi_experiment import RabiExperiment
+from oqtopus_experiments.experiments.rabi import RabiExperiment
 
 
 class RabiExperimentCLI(BaseExperimentCLI):

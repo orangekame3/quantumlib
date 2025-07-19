@@ -118,8 +118,8 @@ You can also use OQTOPUS Experiments directly in Python code:
 ### Basic Example
 
 ```python
-from oqtopus_experiments.experiments.chsh.chsh_experiment import CHSHExperiment
-from oqtopus_experiments.experiments.rabi.rabi_experiment import RabiExperiment
+from oqtopus_experiments.experiments.chsh import CHSHExperiment
+from oqtopus_experiments.experiments.rabi import RabiExperiment
 from oqtopus_experiments.experiments.parity_oscillation import ParityOscillationExperiment
 
 # CHSH Bell inequality test
@@ -157,11 +157,11 @@ results = parity.run_experiment(
 The new functional programming approach provides type-safe, stateless circuit creation with comprehensive metadata:
 
 ```python
-from oqtopus_experiments.experiments.t1.t1_experiment import T1Experiment
-from oqtopus_experiments.experiments.ramsey.ramsey_experiment import RamseyExperiment
-from oqtopus_experiments.experiments.chsh.chsh_experiment import CHSHExperiment
-from oqtopus_experiments.experiments.rabi.rabi_experiment import RabiExperiment
-from oqtopus_experiments.experiments.t2_echo.t2_echo_experiment import T2EchoExperiment
+from oqtopus_experiments.experiments.t1 import T1Experiment
+from oqtopus_experiments.experiments.ramsey import RamseyExperiment
+from oqtopus_experiments.experiments.chsh import CHSHExperiment
+from oqtopus_experiments.experiments.rabi import RabiExperiment
+from oqtopus_experiments.experiments.t2_echo import T2EchoExperiment
 
 # T1 relaxation time circuits
 circuits, metadata = T1Experiment.create_t1_circuits(

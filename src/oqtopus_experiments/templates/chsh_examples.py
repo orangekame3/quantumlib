@@ -6,7 +6,7 @@ Execute experiments using BaseExperiment → CHSHExperiment inheritance pattern
 
 import numpy as np
 
-from ..experiments.chsh.chsh_experiment import CHSHExperiment
+from ..experiments.chsh import CHSHExperiment
 
 
 def basic_chsh_experiment():

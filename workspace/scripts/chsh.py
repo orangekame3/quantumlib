@@ -22,7 +22,7 @@ from oqtopus_experiments.cli.base_cli import (
     DeviceType,
     ExperimentBackend,
 )
-from oqtopus_experiments.experiments.chsh.chsh_experiment import CHSHExperiment
+from oqtopus_experiments.experiments.chsh import CHSHExperiment
 
 
 class CHSHExperimentCLI(BaseExperimentCLI):

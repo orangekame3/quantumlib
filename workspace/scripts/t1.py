@@ -21,7 +21,7 @@ from oqtopus_experiments.cli.base_cli import (
     DeviceType,
     ExperimentBackend,
 )
-from oqtopus_experiments.experiments.t1.t1_experiment import T1Experiment
+from oqtopus_experiments.experiments.t1 import T1Experiment
 
 
 class T1ExperimentCLI(BaseExperimentCLI):

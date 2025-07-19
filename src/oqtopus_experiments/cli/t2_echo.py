@@ -22,7 +22,7 @@ from oqtopus_experiments.cli.base_cli import (
     DeviceType,
     ExperimentBackend,
 )
-from oqtopus_experiments.experiments.t2_echo.t2_echo_experiment import T2EchoExperiment
+from oqtopus_experiments.experiments.t2_echo import T2EchoExperiment
 
 
 class T2EchoExperimentCLI(BaseExperimentCLI):

@@ -3,16 +3,18 @@
 Experiments module - Concrete experiment implementations
 """
 
-from .chsh.chsh_experiment import CHSHExperiment
-from .parity_oscillation.parity_oscillation_experiment import (
-    ParityOscillationExperiment,
-)
-from .rabi.rabi_experiment import RabiExperiment
-from .t1.t1_experiment import T1Experiment
+from .chsh import CHSHExperiment
+from .parity_oscillation import ParityOscillationExperiment
+from .rabi import RabiExperiment
+from .ramsey import RamseyExperiment
+from .t1 import T1Experiment
+from .t2_echo import T2EchoExperiment
 
 __all__ = [
     "CHSHExperiment",
     "ParityOscillationExperiment",
     "RabiExperiment",
+    "RamseyExperiment",
     "T1Experiment",
+    "T2EchoExperiment",
 ]

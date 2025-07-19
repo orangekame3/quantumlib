@@ -21,7 +21,7 @@ from oqtopus_experiments.cli.base_cli import (
     DeviceType,
     ExperimentBackend,
 )
-from oqtopus_experiments.experiments.ramsey.ramsey_experiment import RamseyExperiment
+from oqtopus_experiments.experiments.ramsey import RamseyExperiment
 
 
 class RamseyExperimentCLI(BaseExperimentCLI):
