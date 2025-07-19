@@ -8,8 +8,8 @@ from typing import Annotated, Any
 import numpy as np
 import typer
 
-from quantumlib.circuit.chsh_circuits import create_chsh_circuit
-from quantumlib.cli.base_cli import (
+from oqtopus_experiments.circuit.chsh_circuits import create_chsh_circuit
+from oqtopus_experiments.cli.base_cli import (
     BaseExperimentCLI,
     CommonBackendOption,
     CommonDevicesOption,
@@ -23,7 +23,7 @@ from quantumlib.cli.base_cli import (
     DeviceType,
     ExperimentBackend,
 )
-from quantumlib.experiments.chsh.chsh_experiment import CHSHExperiment
+from oqtopus_experiments.experiments.chsh.chsh_experiment import CHSHExperiment
 
 
 class CHSHExperimentCLI(BaseExperimentCLI):

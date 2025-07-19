@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-T1 CLI - QuantumLib T1 Decay Experiment
+T1 CLI - OQTOPUS Experiments T1 Decay Experiment
 """
 
 from typing import Annotated, Any
@@ -8,7 +8,7 @@ from typing import Annotated, Any
 import numpy as np
 import typer
 
-from quantumlib.cli.base_cli import (
+from oqtopus_experiments.cli.base_cli import (
     BaseExperimentCLI,
     CommonBackendOption,
     CommonDevicesOption,
@@ -22,17 +22,17 @@ from quantumlib.cli.base_cli import (
     DeviceType,
     ExperimentBackend,
 )
-from quantumlib.experiments.t1.t1_experiment import T1Experiment
+from oqtopus_experiments.experiments.t1.t1_experiment import T1Experiment
 
 
 class T1ExperimentCLI(BaseExperimentCLI):
     """
-    T1 experiment dedicated CLI (using QuantumLib integrated framework)
+    T1 experiment dedicated CLI (using OQTOPUS Experiments integrated framework)
     """
 
     def __init__(self):
         super().__init__(
-            experiment_name="T1", help_text="QuantumLib T1 Decay Experiment"
+            experiment_name="T1", help_text="OQTOPUS Experiments T1 Decay Experiment"
         )
 
     def get_experiment_class(self):
@@ -55,7 +55,7 @@ class T1ExperimentCLI(BaseExperimentCLI):
         delay_points = kwargs.get("delay_points", 51)
         max_delay = kwargs.get("max_delay", 100000)
         return (
-            f"QuantumLib T1 Decay Experiment\\n"
+            f"OQTOPUS Experiments T1 Decay Experiment\\n"
             f"Devices: {', '.join(devices)}\\n"
             f"Backend: {backend}\\n"
             f"Shots: {shots:,} per delay | Points: {delay_points}\\n"

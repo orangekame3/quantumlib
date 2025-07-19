@@ -1288,7 +1288,7 @@ class T1Experiment(BaseExperiment, ParallelExecutionMixin):
         ax.set_xlabel("Delay time τ [ns] (log scale)", fontsize=14)
         ax.set_ylabel("P(1)", fontsize=14)
         ax.set_title(
-            "QuantumLib T1 Decay Experiment",
+            "OQTOPUS Experiments T1 Decay Experiment",
             fontsize=16,
             fontweight="bold",
         )

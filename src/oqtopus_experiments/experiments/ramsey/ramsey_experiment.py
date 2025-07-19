@@ -1075,7 +1075,7 @@ class RamseyExperiment(BaseExperiment, ParallelExecutionMixin):
         ax.set_ylabel("P(0)", fontsize=14)
         title_suffix = " (with fitting)" if self.enable_fitting else " (raw data)"
         ax.set_title(
-            f"QuantumLib Ramsey Oscillation Experiment{title_suffix}",
+            f"OQTOPUS Experiments Ramsey Oscillation Experiment{title_suffix}",
             fontsize=16,
             fontweight="bold",
         )

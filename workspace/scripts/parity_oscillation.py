@@ -8,7 +8,7 @@ from typing import Annotated, Any
 
 import typer
 
-from quantumlib.cli.base_cli import (
+from oqtopus_experiments.cli.base_cli import (
     BaseExperimentCLI,
     CommonBackendOption,
     CommonDevicesOption,
@@ -23,7 +23,7 @@ from quantumlib.cli.base_cli import (
     DeviceType,
     ExperimentBackend,
 )
-from quantumlib.experiments.parity_oscillation import ParityOscillationExperiment
+from oqtopus_experiments.experiments.parity_oscillation import ParityOscillationExperiment
 
 
 class ParityOscillationExperimentCLI(BaseExperimentCLI):

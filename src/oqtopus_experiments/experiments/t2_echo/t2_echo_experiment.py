@@ -773,7 +773,7 @@ class T2EchoExperiment(BaseExperiment, ParallelExecutionMixin):
         ax.set_xlabel("Delay time τ [ns] (log scale)", fontsize=14)
         ax.set_ylabel("P(0)", fontsize=14)
         ax.set_title(
-            f"QuantumLib T2 Echo Experiment - {echo_type.upper()} (echoes={num_echoes})",
+            f"OQTOPUS Experiments T2 Echo Experiment - {echo_type.upper()} (echoes={num_echoes})",
             fontsize=16,
             fontweight="bold",
         )

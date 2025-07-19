@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-CHSH CLI - QuantumLib CHSH Bell Inequality Experiment
+CHSH CLI - OQTOPUS Experiments CHSH Bell Inequality Experiment
 """
 
 from typing import Annotated, Any
@@ -8,8 +8,8 @@ from typing import Annotated, Any
 import numpy as np
 import typer
 
-from quantumlib.circuit.chsh_circuits import create_chsh_circuit
-from quantumlib.cli.base_cli import (
+from oqtopus_experiments.circuit.chsh_circuits import create_chsh_circuit
+from oqtopus_experiments.cli.base_cli import (
     BaseExperimentCLI,
     CommonBackendOption,
     CommonDevicesOption,
@@ -23,18 +23,18 @@ from quantumlib.cli.base_cli import (
     DeviceType,
     ExperimentBackend,
 )
-from quantumlib.experiments.chsh.chsh_experiment import CHSHExperiment
+from oqtopus_experiments.experiments.chsh.chsh_experiment import CHSHExperiment
 
 
 class CHSHExperimentCLI(BaseExperimentCLI):
     """
-    CHSH experiment dedicated CLI (using QuantumLib integrated framework)
+    CHSH experiment dedicated CLI (using OQTOPUS Experiments integrated framework)
     """
 
     def __init__(self):
         super().__init__(
             experiment_name="CHSH",
-            help_text="QuantumLib CHSH Bell Inequality Experiment",
+            help_text="OQTOPUS Experiments CHSH Bell Inequality Experiment",
         )
 
     def get_experiment_class(self):
@@ -49,7 +49,7 @@ class CHSHExperimentCLI(BaseExperimentCLI):
         parallel = kwargs.get("parallel", 4)
         points = kwargs.get("points", 20)
         return (
-            f"QuantumLib CHSH Bell Inequality Verification\\n"
+            f"OQTOPUS Experiments CHSH Bell Inequality Verification\\n"
             f"Devices: {', '.join(devices)}\\n"
             f"Backend: {backend}\\n"
             f"Shots: {shots:,} per measurement | Points: {points}\\n"

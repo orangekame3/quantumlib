@@ -1,5 +1,5 @@
 """
-Parallel Execution Mixin for QuantumLib Experiments
+Parallel Execution Mixin for OQTOPUS Experiments Experiments
 
 This module provides a unified parallel execution framework to eliminate
 code duplication across different experiment types.

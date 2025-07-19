@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-QuantumLib - Quantum computing experiment library
+OQTOPUS Experiments - Quantum computing experiment library
 """
 
 # Core components
