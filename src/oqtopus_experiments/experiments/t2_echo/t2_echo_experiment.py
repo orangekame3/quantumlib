@@ -68,9 +68,150 @@ class T2EchoExperiment(BaseExperiment, ParallelExecutionMixin):
                 f"T2 Echo experiment: {echo_type.upper()} echo measurement (fitting disabled, echoes={num_echoes})"
             )
 
+    @classmethod
+    def create_t2_echo_circuits(
+        cls,
+        delay_points: int = 51,
+        max_delay: float = 500000.0,
+        echo_type: str = "hahn",
+        num_echoes: int = 1,
+        delay_times: list[float] | None = None,
+        basis_gates: list[str] | None = None,
+        optimization_level: int = 1,
+    ) -> tuple[list[Any], dict[str, Any]]:
+        """
+        Create T2 Echo experiment circuits (stateless)
+
+        Args:
+            delay_points: Number of delay time points (default: 51)
+            max_delay: Maximum delay time [ns] (default: 500000)
+            echo_type: Echo type "hahn" or "cpmg" (default: "hahn")
+            num_echoes: Number of echoes (default: 1)
+            delay_times: Directly specified delay time list [ns] (optional)
+            basis_gates: Basis gates for transpilation (optional)
+            optimization_level: Qiskit transpiler optimization level (default: 1)
+
+        Returns:
+            Tuple of (circuits, metadata)
+        """
+        import numpy as np
+
+        # Handle delay times
+        if delay_times is not None:
+            delay_times_array = np.array(delay_times)
+        else:
+            # Default: logarithmic scale from 100ns to max_delay
+            if delay_points == 51:
+                delay_times_array = np.logspace(
+                    np.log10(100), np.log10(max_delay), num=51
+                )
+            else:
+                delay_times_array = np.linspace(100, max_delay, delay_points)
+
+        # Create circuits
+        circuits = []
+        for delay_time in delay_times_array:
+            circuit = cls._create_single_t2_echo_circuit(
+                delay_time=delay_time,
+                echo_type=echo_type,
+                num_echoes=num_echoes,
+                basis_gates=basis_gates,
+                optimization_level=optimization_level,
+            )
+            circuits.append(circuit)
+
+        # Create metadata
+        metadata = {
+            "delay_times": delay_times_array.tolist(),
+            "delay_points": len(delay_times_array),
+            "max_delay": max_delay,
+            "echo_type": echo_type,
+            "num_echoes": num_echoes,
+            "experiment_type": "T2_Echo",
+            "basis_gates": basis_gates,
+            "optimization_level": optimization_level,
+        }
+
+        return circuits, metadata
+
+    @staticmethod
+    def _create_single_t2_echo_circuit(
+        delay_time: float,
+        echo_type: str = "hahn",
+        num_echoes: int = 1,
+        basis_gates: list[str] | None = None,
+        optimization_level: int = 1,
+    ) -> Any:
+        """Create single T2 Echo circuit (pure function)"""
+        from qiskit import QuantumCircuit, transpile
+
+        # 1 qubit + 1 classical bit
+        circuit = QuantumCircuit(1, 1)
+
+        if echo_type.lower() == "hahn":
+            # Hahn Echo: X/2 - τ/2 - Y - τ/2 - X/2
+            circuit.sx(0)  # X/2 pulse
+
+            # τ/2 delay
+            half_delay = delay_time / 2
+            if half_delay > 0:
+                circuit.delay(int(half_delay), 0, unit="ns")
+
+            # π pulse (refocusing)
+            circuit.x(0)
+
+            # τ/2 delay
+            if half_delay > 0:
+                circuit.delay(int(half_delay), 0, unit="ns")
+
+            # Final X/2 pulse
+            circuit.sx(0)
+
+        elif echo_type.lower() == "cpmg":
+            # CPMG: X/2 - [τ/(2n) - Y - τ/n - Y - τ/(2n)]^n - X/2
+            circuit.sx(0)  # Initial X/2 pulse
+
+            # CPMG sequence
+            segment_delay = delay_time / (2 * num_echoes)
+            middle_delay = delay_time / num_echoes
+
+            for i in range(num_echoes):
+                # τ/(2n) delay
+                if segment_delay > 0:
+                    circuit.delay(int(segment_delay), 0, unit="ns")
+
+                # π pulse
+                circuit.x(0)
+
+                # τ/n delay (except for last echo)
+                if i < num_echoes - 1:
+                    if middle_delay > 0:
+                        circuit.delay(int(middle_delay), 0, unit="ns")
+                else:
+                    # Last segment: τ/(2n)
+                    if segment_delay > 0:
+                        circuit.delay(int(segment_delay), 0, unit="ns")
+
+            # Final X/2 pulse
+            circuit.sx(0)
+
+        else:
+            raise ValueError(f"Unknown echo_type: {echo_type}. Use 'hahn' or 'cpmg'")
+
+        # Measurement
+        circuit.measure(0, 0)
+
+        # Transpile if requested
+        if basis_gates is not None:
+            circuit = transpile(
+                circuit, basis_gates=basis_gates, optimization_level=optimization_level
+            )
+
+        return circuit
+
     def create_circuits(self, **kwargs) -> list[Any]:
         """
-        Create T2 Echo experiment circuits
+        Create T2 Echo experiment circuits (compatibility wrapper)
 
         Args:
             delay_points: Number of delay time points (default: 51)
@@ -82,42 +223,38 @@ class T2EchoExperiment(BaseExperiment, ParallelExecutionMixin):
         Returns:
             T2 Echo circuit list
         """
+        # Get parameters with defaults
         delay_points = kwargs.get("delay_points", 51)
-        max_delay = kwargs.get(
-            "max_delay", 500000
-        )  # T2 measurement requires longer times
+        max_delay = kwargs.get("max_delay", 500000)
         echo_type = kwargs.get("echo_type", self.echo_type)
         num_echoes = kwargs.get("num_echoes", self.num_echoes)
+        delay_times = kwargs.get("delay_times")
+        basis_gates = kwargs.get("basis_gates")
+        optimization_level = kwargs.get("optimization_level", 1)
 
-        # Delay time range
-        if "delay_times" in kwargs:
-            delay_times = np.array(kwargs["delay_times"])
-        else:
-            # Default: 51 points on logarithmic scale from 100ns to 500μs
-            delay_times = np.logspace(np.log10(100), np.log10(500 * 1000), num=51)
-            if delay_points != 51:
-                delay_times = np.linspace(100, max_delay, delay_points)
+        # Use classmethod implementation
+        circuits, metadata = self.create_t2_echo_circuits(
+            delay_points=delay_points,
+            max_delay=max_delay,
+            echo_type=echo_type,
+            num_echoes=num_echoes,
+            delay_times=delay_times,
+            basis_gates=basis_gates,
+            optimization_level=optimization_level,
+        )
 
-        # Save metadata
+        # Store metadata for compatibility
         self.experiment_params = {
-            "delay_times": delay_times.tolist(),
-            "delay_points": len(delay_times),
-            "max_delay": max_delay,
-            "echo_type": echo_type,
-            "num_echoes": num_echoes,
+            "delay_times": metadata["delay_times"],
+            "delay_points": metadata["delay_points"],
+            "max_delay": metadata["max_delay"],
+            "echo_type": metadata["echo_type"],
+            "num_echoes": metadata["num_echoes"],
         }
 
-        # Create T2 Echo circuits
-        circuits = []
-        for delay_time in delay_times:
-            circuit = self._create_single_t2_echo_circuit(
-                delay_time, echo_type, num_echoes
-            )
-            circuits.append(circuit)
-
         print(
-            f"T2 Echo circuits: Delay range {len(delay_times)} points from {delay_times[0]:.1f} to {delay_times[-1]:.1f} ns, "
-            f"{echo_type.upper()} echo (echoes={num_echoes})"
+            f"T2 Echo circuits: Delay range {len(metadata['delay_times'])} points from {metadata['delay_times'][0]:.1f} to {metadata['delay_times'][-1]:.1f} ns, "
+            f"{metadata['echo_type'].upper()} echo (echoes={metadata['num_echoes']})"
         )
 
         return circuits
@@ -309,82 +446,6 @@ class T2EchoExperiment(BaseExperiment, ParallelExecutionMixin):
 
         # Timeout
         return {"success": False, "status": "timeout", "job_id": job_id}
-
-    def _create_single_t2_echo_circuit(
-        self, delay_time: float, echo_type: str = "hahn", num_echoes: int = 1
-    ) -> Any:
-        """
-        Create single T2 Echo circuit
-
-        Args:
-            delay_time: Total delay time [ns]
-            echo_type: "hahn" or "cpmg"
-            num_echoes: Number of echoes
-        """
-        try:
-            from qiskit import QuantumCircuit
-        except ImportError:
-            raise ImportError(
-                "Qiskit is required for T2 Echo circuit creation"
-            ) from None
-
-        # 1 qubit + 1 classical bit
-        circuit = QuantumCircuit(1, 1)
-
-        if echo_type.lower() == "hahn":
-            # Hahn Echo: X/2 - τ/2 - Y - τ/2 - X/2
-            circuit.sx(0)  # X/2 pulse
-
-            # τ/2 delay
-            half_delay = delay_time / 2
-            if half_delay > 0:
-                circuit.delay(int(half_delay), 0, unit="ns")
-
-            # π pulse (refocusing)
-            circuit.x(0)
-
-            # τ/2 delay
-            if half_delay > 0:
-                circuit.delay(int(half_delay), 0, unit="ns")
-
-            # Final X/2 pulse
-            circuit.sx(0)
-
-        elif echo_type.lower() == "cpmg":
-            # CPMG: X/2 - [τ/(2n) - Y - τ/n - Y - τ/(2n)]^n - X/2
-            circuit.sx(0)  # Initial X/2 pulse
-
-            # CPMG sequence
-            segment_delay = delay_time / (2 * num_echoes)
-            middle_delay = delay_time / num_echoes
-
-            for i in range(num_echoes):
-                # τ/(2n) delay
-                if segment_delay > 0:
-                    circuit.delay(int(segment_delay), 0, unit="ns")
-
-                # π pulse
-                circuit.x(0)
-
-                # τ/n delay (except for last echo)
-                if i < num_echoes - 1:
-                    if middle_delay > 0:
-                        circuit.delay(int(middle_delay), 0, unit="ns")
-                else:
-                    # Last segment: τ/(2n)
-                    if segment_delay > 0:
-                        circuit.delay(int(segment_delay), 0, unit="ns")
-
-            # Final X/2 pulse
-            circuit.sx(0)
-
-        else:
-            raise ValueError(f"Unknown echo_type: {echo_type}. Use 'hahn' or 'cpmg'")
-
-        # Measurement
-        circuit.measure(0, 0)
-
-        return circuit
 
     def _convert_decimal_to_binary_counts(
         self, counts: dict[str, int]

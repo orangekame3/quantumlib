@@ -60,12 +60,108 @@ class RamseyExperiment(BaseExperiment, ParallelExecutionMixin):
         else:
             print("Ramsey experiment: Standard Ramsey measurement (fitting disabled)")
 
-    def create_circuits(self, **kwargs) -> list[Any]:
+    @classmethod
+    def create_ramsey_circuits(
+        cls,
+        delay_points: int = 21,
+        max_delay: float = 50000.0,
+        detuning: float = 0.0,
+        delay_times: list[float] | None = None,
+        basis_gates: list[str] | None = None,
+        optimization_level: int = 1,
+    ) -> tuple[list[Any], dict[str, Any]]:
         """
-        Create Ramsey experiment circuits
+        Create Ramsey experiment circuits (stateless)
 
         Args:
-            delay_points: Number of delay time points (default: 51)
+            delay_points: Number of delay time points
+            max_delay: Maximum delay time [ns]
+            detuning: Detuning frequency [MHz]
+            delay_times: Directly specified delay times [ns]
+            basis_gates: Transpiler basis gates
+            optimization_level: Transpiler optimization level
+
+        Returns:
+            (circuits, metadata) tuple
+        """
+        # Generate delay times if not provided
+        if delay_times is None:
+            # Default: logarithmic scale from 50ns to max_delay
+            delay_times_array = np.logspace(
+                np.log10(50), np.log10(max_delay), num=delay_points
+            )
+            delay_times = delay_times_array.tolist()
+
+        # Create circuits
+        circuits = []
+        for delay_time in delay_times:
+            circuit = cls._create_single_ramsey_circuit(
+                delay_time,
+                detuning=detuning,
+                basis_gates=basis_gates,
+                optimization_level=optimization_level,
+            )
+            circuits.append(circuit)
+
+        # Create metadata
+        metadata = {
+            "delay_times": delay_times,
+            "delay_points": len(delay_times),
+            "max_delay": max_delay,
+            "detuning": detuning,
+            "experiment_type": "Ramsey",
+            "basis_gates": basis_gates,
+            "optimization_level": optimization_level,
+        }
+
+        return circuits, metadata
+
+    @staticmethod
+    def _create_single_ramsey_circuit(
+        delay_time: float,
+        detuning: float = 0.0,
+        basis_gates: list[str] | None = None,
+        optimization_level: int = 1,
+    ) -> Any:
+        """Create single Ramsey circuit (pure function)"""
+        from qiskit import QuantumCircuit, transpile
+        from qiskit.circuit import Delay
+        from qiskit.circuit.library import HGate, RZGate
+
+        # Create circuit
+        circuit = QuantumCircuit(1, 1)
+
+        # Ramsey sequence: H → delay → RZ(detuning) → H → measure
+        circuit.append(HGate(), [0])
+        circuit.append(Delay(delay_time, "ns"), [0])
+
+        # Apply detuning phase if specified
+        if detuning != 0.0:
+            # Convert detuning from MHz to radians
+            phase = 2 * np.pi * detuning * delay_time * 1e-3  # ns to μs conversion
+            circuit.append(RZGate(phase), [0])
+
+        circuit.append(HGate(), [0])
+        circuit.measure(0, 0)
+
+        # Transpile if basis gates specified
+        if basis_gates is not None:
+            circuit = transpile(
+                circuit,
+                basis_gates=basis_gates,
+                optimization_level=optimization_level,
+            )
+
+        return circuit
+
+    def create_circuits(self, **kwargs) -> list[Any]:
+        """
+        Create Ramsey experiment circuits (compatibility wrapper)
+
+        Note: Consider using RamseyExperiment.create_ramsey_circuits() classmethod for new code.
+
+        Args:
+            delay_points: Number of delay time points (default: 21)
             max_delay: Maximum delay time [ns] (default: 50000)
             detuning: Frequency detuning [MHz] (default: 0.0)
             delay_times: Directly specified delay time list [ns] (optional)
@@ -73,8 +169,8 @@ class RamseyExperiment(BaseExperiment, ParallelExecutionMixin):
         Returns:
             Ramsey circuit list
         """
-        delay_points = kwargs.get("delay_points", 51)
-        max_delay = kwargs.get("max_delay", 200000)
+        delay_points = kwargs.get("delay_points", 21)
+        max_delay = kwargs.get("max_delay", 50000)
         detuning = kwargs.get("detuning", 0.0)
 
         # Delay time range
@@ -94,14 +190,26 @@ class RamseyExperiment(BaseExperiment, ParallelExecutionMixin):
             "detuning": detuning,
         }
 
-        # Create Ramsey circuits
-        circuits = []
-        for delay_time in delay_times:
-            circuit = self._create_single_ramsey_circuit(delay_time, detuning)
-            circuits.append(circuit)
+        # Use new classmethod
+        circuits, metadata = self.create_ramsey_circuits(
+            delay_points=delay_points,
+            max_delay=max_delay,
+            detuning=detuning,
+            delay_times=delay_times.tolist() if delay_times is not None else None,
+            basis_gates=getattr(self, "anemone_basis_gates", None),
+            optimization_level=getattr(self, "transpiler_options", {}).get(
+                "optimization_level", 1
+            ),
+        )
+
+        # Store metadata in instance for compatibility
+        self.experiment_params = metadata.copy()
 
         print(
-            f"Ramsey circuits: Delay range {len(delay_times)} points from {delay_times[0]:.1f} to {delay_times[-1]:.1f} ns, detuning={detuning} MHz"
+            f"Ramsey circuits: Delay range {len(metadata['delay_times'])} points from {metadata['delay_times'][0]:.1f} to {metadata['delay_times'][-1]:.1f} ns, detuning={detuning} MHz"
+        )
+        print(
+            "Ramsey circuit structure: |0⟩ → H → delay(τ) → RZ(detuning) → H → measure"
         )
 
         return circuits
@@ -559,47 +667,6 @@ class RamseyExperiment(BaseExperiment, ParallelExecutionMixin):
         return self.run_ramsey_experiment_parallel(
             devices=devices, shots=shots, parallel_workers=4, **kwargs
         )
-
-    def _create_single_ramsey_circuit(self, delay_time: float, detuning: float = 0.0):
-        """
-        単一Ramsey回路作成（Qiskitスタイル）
-
-        Args:
-            delay_time: 遅延時間 [ns]
-            detuning: 周波数デチューニング [MHz] (default: 0.0)
-
-        Ramsey sequence: H - delay - Rz(φ) - H - measure
-        where φ = 2π × detuning [MHz] × delay_time [ns] × 1e-3
-        """
-        try:
-            from qiskit import QuantumCircuit
-        except ImportError:
-            raise ImportError("Qiskit is required for circuit creation") from None
-
-        # 1量子ビット + 1測定ビット（Qiskitスタイル）
-        circuit = QuantumCircuit(1, 1)
-
-        # First π/2 pulse (Hadamard gate - Qiskitスタイル)
-        circuit.h(0)
-
-        # 遅延時間の間自由進化
-        if delay_time > 0:
-            circuit.delay(int(delay_time), 0, unit="ns")
-
-        # デチューニング効果（z軸回転）
-        if detuning != 0.0:
-            # φ = 2π × detuning [MHz] × delay_time [ns] × 1e-9 [s/ns] × 1e6 [Hz/MHz]
-            # φ = 2π × detuning × delay_time × 1e-3
-            phase = 2 * np.pi * detuning * delay_time * 1e-3
-            circuit.rz(phase, 0)
-
-        # Second π/2 pulse (analysis pulse - Hadamard)
-        circuit.h(0)
-
-        # Z基底測定
-        circuit.measure(0, 0)
-
-        return circuit
 
     def analyze_results(
         self, results: dict[str, list[dict[str, Any]]], **kwargs

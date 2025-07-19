@@ -67,30 +67,31 @@ class RabiExperimentCLI(BaseExperimentCLI):
     def generate_circuits(
         self, experiment_instance: RabiExperiment, **kwargs
     ) -> tuple[list[Any], dict]:
-        """Rabi circuit generation"""
+        """Rabi circuit generation using modern classmethod approach"""
         points = kwargs.get("points", 20)
         max_amplitude = kwargs.get("max_amplitude", 2 * np.pi)
+        basis_gates = kwargs.get("basis_gates")
+        optimization_level = kwargs.get("optimization_level", 1)
 
-        # Generate circuits for Rabi experiment
-        amplitude_range = np.linspace(0, max_amplitude, points)
-
-        circuits = experiment_instance.create_circuits(
+        # Use the new classmethod for stateless circuit creation
+        circuits, metadata = RabiExperiment.create_rabi_circuits(
             amplitude_points=points,
             max_amplitude=max_amplitude,
             drive_time=1.0,
             drive_frequency=0.0,
+            basis_gates=basis_gates,
+            optimization_level=optimization_level,
         )
 
         self.console.print(
-            f"   Amplitude range: {points} points from 0 to {max_amplitude:.3f} rad"
+            f"   Amplitude range: {metadata['amplitude_points']} points from 0 to {metadata['max_amplitude']:.3f} rad"
         )
         self.console.print(f"   Expected π pulse at: {np.pi:.3f} rad")
+        self.console.print(
+            f"   Drive time: {metadata['drive_time']}, Frequency: {metadata['drive_frequency']}"
+        )
 
-        return circuits, {
-            "amplitude_range": amplitude_range,
-            "max_amplitude": max_amplitude,
-            "points": points,
-        }
+        return circuits, metadata
 
     def process_results(
         self,

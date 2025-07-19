@@ -60,48 +60,125 @@ class T1Experiment(BaseExperiment, ParallelExecutionMixin):
         self.mitigation_info = self.mitigation_options
         self._debug_count: int = 0
 
-    def create_circuits(self, **kwargs) -> list[Any]:
+    @classmethod
+    def create_t1_circuits(
+        cls,
+        delay_points: int = 51,
+        max_delay: float = 100000.0,
+        delay_times: list[float] | None = None,
+        basis_gates: list[str] | None = None,
+        optimization_level: int = 1,
+    ) -> tuple[list[Any], dict[str, Any]]:
         """
-        Create T1 experiment circuits
+        Create T1 experiment circuits (stateless)
 
         Args:
-            delay_points: Number of delay time points (default: 16)
-            max_delay: Maximum delay time [ns] (default: 1000)
-            t1: T1 relaxation time [ns] (default: 500)
-            t2: T2 relaxation time [ns] (default: 500)
+            delay_points: Number of delay time points
+            max_delay: Maximum delay time [ns]
+            delay_times: Directly specified delay times [ns]
+            basis_gates: Transpiler basis gates
+            optimization_level: Transpiler optimization level
+
+        Returns:
+            (circuits, metadata) tuple
+        """
+        # Generate delay times if not provided
+        if delay_times is None:
+            # Default: logarithmic scale from 100ns to max_delay
+            delay_times_array = np.logspace(
+                np.log10(100), np.log10(max_delay), num=delay_points
+            )
+            delay_times = delay_times_array.tolist()
+
+        # Create circuits
+        circuits = []
+        for delay_time in delay_times:
+            circuit = cls._create_single_t1_circuit(
+                delay_time,
+                basis_gates=basis_gates,
+                optimization_level=optimization_level,
+            )
+            circuits.append(circuit)
+
+        # Create metadata
+        metadata = {
+            "delay_times": delay_times,
+            "delay_points": len(delay_times),
+            "max_delay": max_delay,
+            "experiment_type": "T1",
+            "basis_gates": basis_gates,
+            "optimization_level": optimization_level,
+        }
+
+        return circuits, metadata
+
+    @staticmethod
+    def _create_single_t1_circuit(
+        delay_time: float,
+        basis_gates: list[str] | None = None,
+        optimization_level: int = 1,
+    ) -> Any:
+        """Create single T1 circuit (pure function)"""
+        from qiskit import QuantumCircuit, transpile
+        from qiskit.circuit import Delay
+        from qiskit.circuit.library import XGate
+
+        # Create circuit
+        circuit = QuantumCircuit(1, 1)
+
+        # T1 sequence: X gate → delay → measurement
+        circuit.append(XGate(), [0])
+        circuit.append(Delay(delay_time, "ns"), [0])
+        circuit.measure(0, 0)
+
+        # Transpile if basis gates specified
+        if basis_gates is not None:
+            circuit = transpile(
+                circuit,
+                basis_gates=basis_gates,
+                optimization_level=optimization_level,
+            )
+
+        return circuit
+
+    def create_circuits(self, **kwargs) -> list[Any]:
+        """
+        Create T1 experiment circuits (compatibility wrapper)
+
+        Note: Consider using T1Experiment.create_t1_circuits() classmethod for new code.
+
+        Args:
+            delay_points: Number of delay time points (default: 51)
+            max_delay: Maximum delay time [ns] (default: 100000)
             delay_times: Directly specified delay time list [ns] (optional)
 
         Returns:
             T1 circuit list
         """
+        # Extract parameters
         delay_points = kwargs.get("delay_points", 51)
         max_delay = kwargs.get("max_delay", 100000)
-        # t1, t2 parameters are not used (for fitting from measured data)
+        delay_times = kwargs.get("delay_times")
 
-        # Delay time range
-        if "delay_times" in kwargs:
-            delay_times = np.array(kwargs["delay_times"])
-        else:
-            # Default: 51 points on logarithmic scale from 100ns to 100μs
-            delay_times = np.logspace(np.log10(100), np.log10(100 * 1000), num=51)
-            if delay_points != 51:
-                delay_times = np.linspace(1, max_delay, delay_points)
+        if delay_times is not None:
+            delay_times = list(delay_times)  # Convert numpy array if needed
 
-        # Save metadata
-        self.experiment_params = {
-            "delay_times": delay_times.tolist(),
-            "delay_points": len(delay_times),
-            "max_delay": max_delay,
-        }
+        # Use new classmethod
+        circuits, metadata = self.create_t1_circuits(
+            delay_points=delay_points,
+            max_delay=max_delay,
+            delay_times=delay_times,
+            basis_gates=getattr(self, "anemone_basis_gates", None),
+            optimization_level=getattr(self, "transpiler_options", {}).get(
+                "optimization_level", 1
+            ),
+        )
 
-        # Create T1 circuits (actual circuits don't need t1, t2 parameters)
-        circuits = []
-        for delay_time in delay_times:
-            circuit = self._create_single_t1_circuit(delay_time)
-            circuits.append(circuit)
+        # Store metadata in instance for compatibility
+        self.experiment_params = metadata.copy()
 
         print(
-            f"T1 circuits: Delay range {len(delay_times)} points from {delay_times[0]:.1f} to {delay_times[-1]:.1f} ns"
+            f"T1 circuits: Delay range {len(metadata['delay_times'])} points from {metadata['delay_times'][0]:.1f} to {metadata['delay_times'][-1]:.1f} ns"
         )
         print(
             "T1 circuit structure: |0⟩ → X → delay(τ) → measure (expected: P(1) decreases with time)"
@@ -630,31 +707,6 @@ class T1Experiment(BaseExperiment, ParallelExecutionMixin):
         return self.run_t1_experiment_parallel(
             devices=devices, shots=shots, parallel_workers=4, **kwargs
         )
-
-    def _create_single_t1_circuit(self, delay_time: float):
-        """
-        Create single T1 circuit (t1, t2 parameters not required)
-        """
-        try:
-            from qiskit import ClassicalRegister, QuantumCircuit, QuantumRegister
-        except ImportError:
-            raise ImportError("Qiskit is required for circuit creation") from None
-
-        # 1 qubit + 1 classical bit
-        qubits = QuantumRegister(1, "q")
-        bits = ClassicalRegister(1, "c")
-        qc = QuantumCircuit(qubits, bits)
-
-        # Excite to |1⟩ state
-        qc.x(0)
-
-        # Wait for delay time
-        qc.delay(int(delay_time), 0, unit="ns")
-
-        # Z-basis measurement
-        qc.measure(0, 0)
-
-        return qc
 
     def analyze_results(
         self, results: dict[str, list[dict[str, Any]]], **kwargs
