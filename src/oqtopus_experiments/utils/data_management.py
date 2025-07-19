@@ -16,7 +16,7 @@ def create_experiment_data_structure(
     experiment_type: str,
     results: dict[str, Any],
     experiment_params: dict[str, Any] | None = None,
-    metadata: dict[str, Any] | None = None
+    metadata: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """
     Create a standardized experiment data structure for saving.
@@ -39,7 +39,7 @@ def create_experiment_data_structure(
             "type": experiment_type,
             "timestamp": timestamp,
             "date_time": time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(timestamp)),
-            "version": "quantumlib_v0.1.0"
+            "version": "quantumlib_v0.1.0",
         },
         "experiment_params": experiment_params or {},
         "results": results,
@@ -47,10 +47,16 @@ def create_experiment_data_structure(
         "oqtopus_configuration": {
             "backend_used": results.get("backend", "unknown"),
             "devices_used": list(results.get("device_results", {}).keys()),
-            "total_circuits": len(results.get("device_results", {}).get(
-                list(results.get("device_results", {}).keys())[0], []
-            )) if results.get("device_results") else 0
-        }
+            "total_circuits": (
+                len(
+                    results.get("device_results", {}).get(
+                        list(results.get("device_results", {}).keys())[0], []
+                    )
+                )
+                if results.get("device_results")
+                else 0
+            ),
+        },
     }
 
     # Add experiment-specific metadata
@@ -60,14 +66,14 @@ def create_experiment_data_structure(
                 "delay_points": len(experiment_params["delay_times"]),
                 "min_delay": min(experiment_params["delay_times"]),
                 "max_delay": max(experiment_params["delay_times"]),
-                "delay_unit": "ns"
+                "delay_unit": "ns",
             }
     elif experiment_type == "CHSH" and experiment_params:
         if "phase_range" in experiment_params:
             data_structure["phase_info"] = {
                 "phase_points": len(experiment_params["phase_range"]),
                 "phase_range": [0, 2 * 3.14159],  # 0 to 2π
-                "phase_unit": "radians"
+                "phase_unit": "radians",
             }
     elif experiment_type == "Rabi" and experiment_params:
         if "amplitudes" in experiment_params:
@@ -75,7 +81,7 @@ def create_experiment_data_structure(
                 "amplitude_points": len(experiment_params["amplitudes"]),
                 "min_amplitude": min(experiment_params["amplitudes"]),
                 "max_amplitude": max(experiment_params["amplitudes"]),
-                "amplitude_unit": "normalized"
+                "amplitude_unit": "normalized",
             }
 
     return data_structure
@@ -85,7 +91,7 @@ def save_experiment_data(
     data: dict[str, Any],
     experiment_name: str | None = None,
     output_dir: str = "quantum_experiments",
-    include_timestamp: bool = True
+    include_timestamp: bool = True,
 ) -> str:
     """
     Save experiment data to JSON file with standardized naming.
@@ -122,7 +128,7 @@ def save_experiment_data(
 
     # Save data
     try:
-        with open(file_path, 'w', encoding='utf-8') as f:
+        with open(file_path, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=2, default=str)
 
         print(f"💾 Experiment data saved: {file_path}")
@@ -144,7 +150,7 @@ def load_experiment_data(file_path: str) -> dict[str, Any]:
         Loaded experiment data dictionary
     """
     try:
-        with open(file_path, encoding='utf-8') as f:
+        with open(file_path, encoding="utf-8") as f:
             data = json.load(f)
 
         print(f"📁 Experiment data loaded: {file_path}")
@@ -179,7 +185,9 @@ def create_backup_copy(file_path: str, backup_dir: str = "backups") -> str:
 
     # Generate backup filename with timestamp
     timestamp_str = time.strftime("%Y%m%d_%H%M%S")
-    backup_filename = f"{original_path.stem}_backup_{timestamp_str}{original_path.suffix}"
+    backup_filename = (
+        f"{original_path.stem}_backup_{timestamp_str}{original_path.suffix}"
+    )
     backup_file_path = backup_path / backup_filename
 
     try:
@@ -197,7 +205,7 @@ def generate_experiment_metadata(
     shots: int,
     devices: list,
     parallel_workers: int = 4,
-    additional_info: dict[str, Any] | None = None
+    additional_info: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """
     Generate standardized experiment metadata.
@@ -218,18 +226,18 @@ def generate_experiment_metadata(
             "devices": devices,
             "parallel_workers": parallel_workers,
             "total_devices": len(devices),
-            "execution_time": time.time()
+            "execution_time": time.time(),
         },
         "system_info": {
             "python_version": "3.12+",
             "quantumlib_version": "0.1.0",
-            "framework": "OQTOPUS"
+            "framework": "OQTOPUS",
         },
         "experiment_config": {
             "type": experiment_type,
             "parallel_execution": True,
-            "error_mitigation": False  # Can be overridden
-        }
+            "error_mitigation": False,  # Can be overridden
+        },
     }
 
     if additional_info:
@@ -242,7 +250,7 @@ def cleanup_old_files(
     directory: str,
     max_age_days: int = 30,
     file_pattern: str = "*.json",
-    dry_run: bool = True
+    dry_run: bool = True,
 ) -> list[str]:
     """
     Clean up old experiment files based on age.
@@ -284,7 +292,9 @@ def cleanup_old_files(
                 except Exception as e:
                     print(f"❌ Error deleting {file_path}: {e}")
             else:
-                print(f"🔍 Would delete: {file_path} (age: {file_age/86400:.1f} days)")
+                print(
+                    f"🔍 Would delete: {file_path} (age: {file_age / 86400:.1f} days)"
+                )
 
     if dry_run and files_to_delete:
         print(f"📊 Found {len(files_to_delete)} files older than {max_age_days} days")

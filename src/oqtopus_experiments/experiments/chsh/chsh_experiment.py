@@ -700,7 +700,7 @@ class CHSHExperiment(BaseExperiment, ParallelExecutionMixin):
             shots=shots,
             parallel_workers=parallel_workers,
             submit_function=submit_single_chsh_circuit,
-            progress_name="CHSH Submission"
+            progress_name="CHSH Submission",
         )
 
     def _submit_chsh_circuits_locally_parallel(
@@ -798,9 +798,9 @@ class CHSHExperiment(BaseExperiment, ParallelExecutionMixin):
                         meas_idx = circuit_idx % 4
                         phase_phi = (
                             self.experiment_params["phase_range"][phase_idx]
-                            if hasattr(self, "experiment_params") and
-                               self.experiment_params and
-                               phase_idx < len(self.experiment_params["phase_range"])
+                            if hasattr(self, "experiment_params")
+                            and self.experiment_params
+                            and phase_idx < len(self.experiment_params["phase_range"])
                             else 0
                         )
                         print(
@@ -808,21 +808,25 @@ class CHSHExperiment(BaseExperiment, ParallelExecutionMixin):
                         )
                         return processed_result
                     else:
-                        print(f"⚠️ {device}[{circuit_idx}]: {job_id[:8]}... no measurement data")
+                        print(
+                            f"⚠️ {device}[{circuit_idx}]: {job_id[:8]}... no measurement data"
+                        )
                         return None
                 else:
                     status = result.get("status", "unknown") if result else "no_result"
                     print(f"⚠️ {device}[{circuit_idx}]: {job_id[:8]}... {status}")
                     return None
             except Exception as e:
-                print(f"❌ {device}[{circuit_idx}]: {job_id[:8]}... error: {str(e)[:50]}")
+                print(
+                    f"❌ {device}[{circuit_idx}]: {job_id[:8]}... error: {str(e)[:50]}"
+                )
                 return None
 
         return self.collect_results_parallel_with_order(
             job_data=job_data,
             parallel_workers=parallel_workers,
             collect_function=collect_single_chsh_result,
-            progress_name="CHSH Collection"
+            progress_name="CHSH Collection",
         )
 
         # Handle local results

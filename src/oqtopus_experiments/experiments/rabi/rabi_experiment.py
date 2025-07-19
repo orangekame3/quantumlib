@@ -365,7 +365,9 @@ class RabiExperiment(BaseExperiment):
         ax.set_xlabel("Drive Amplitude [rad]", fontsize=14)
         ax.set_ylabel("Excitation Probability", fontsize=14)
         ax.set_title(
-            "OQTOPUS Experiments Rabi Oscillation Experiment", fontsize=16, fontweight="bold"
+            "OQTOPUS Experiments Rabi Oscillation Experiment",
+            fontsize=16,
+            fontweight="bold",
         )
         ax.grid(True, alpha=0.3)
         ax.legend(fontsize=12)

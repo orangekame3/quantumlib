@@ -23,7 +23,9 @@ from oqtopus_experiments.cli.base_cli import (
     DeviceType,
     ExperimentBackend,
 )
-from oqtopus_experiments.experiments.parity_oscillation import ParityOscillationExperiment
+from oqtopus_experiments.experiments.parity_oscillation import (
+    ParityOscillationExperiment,
+)
 
 
 class ParityOscillationExperimentCLI(BaseExperimentCLI):

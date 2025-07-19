@@ -10,9 +10,7 @@ from typing import Any
 
 
 def display_experiment_results(
-    results: dict[str, Any],
-    experiment_type: str,
-    use_rich: bool = True
+    results: dict[str, Any], experiment_type: str, use_rich: bool = True
 ) -> None:
     """
     Display experiment results using Rich tables with plain text fallback.
@@ -29,10 +27,13 @@ def display_experiment_results(
         try:
             from rich.console import Console
             from rich.table import Table
+
             console = Console()
 
             # Create main results table
-            table = Table(title=f"{experiment_type} Experiment Results", show_header=True)
+            table = Table(
+                title=f"{experiment_type} Experiment Results", show_header=True
+            )
             table.add_column("Metric", style="bold cyan")
             table.add_column("Value", style="bold green")
 
@@ -44,9 +45,14 @@ def display_experiment_results(
                 if experiment_type == "T1" and "estimated_t1" in analysis:
                     table.add_row("Estimated T1", f"{analysis['estimated_t1']:.3f} ns")
                 elif experiment_type == "Ramsey" and "estimated_t2_star" in analysis:
-                    table.add_row("Estimated T2*", f"{analysis['estimated_t2_star']:.3f} ns")
+                    table.add_row(
+                        "Estimated T2*", f"{analysis['estimated_t2_star']:.3f} ns"
+                    )
                     if "estimated_frequency" in analysis:
-                        table.add_row("Detuning Frequency", f"{analysis['estimated_frequency']:.3f} MHz")
+                        table.add_row(
+                            "Detuning Frequency",
+                            f"{analysis['estimated_frequency']:.3f} MHz",
+                        )
                 elif experiment_type == "T2 Echo" and "estimated_t2" in analysis:
                     table.add_row("Estimated T2", f"{analysis['estimated_t2']:.3f} ns")
                 elif experiment_type == "CHSH" and "s_value" in analysis:
@@ -54,13 +60,17 @@ def display_experiment_results(
                     table.add_row("Classical Bound", "2.000")
                     table.add_row("Quantum Maximum", "2.828")
                 elif experiment_type == "Rabi" and "rabi_frequency" in analysis:
-                    table.add_row("Rabi Frequency", f"{analysis['rabi_frequency']:.3f} MHz")
+                    table.add_row(
+                        "Rabi Frequency", f"{analysis['rabi_frequency']:.3f} MHz"
+                    )
 
                 # Add fit quality if available
                 if "fit_quality" in analysis:
                     fit_quality = analysis["fit_quality"]
                     if "r_squared" in fit_quality:
-                        table.add_row("R² (Fit Quality)", f"{fit_quality['r_squared']:.4f}")
+                        table.add_row(
+                            "R² (Fit Quality)", f"{fit_quality['r_squared']:.4f}"
+                        )
 
             # Add device information
             if "device_results" in results:
@@ -77,7 +87,10 @@ def display_experiment_results(
                 params = results["experiment_params"]
                 if "delay_times" in params and isinstance(params["delay_times"], list):
                     delay_range = params["delay_times"]
-                    table.add_row("Delay Range", f"{min(delay_range):.1f} - {max(delay_range):.1f} ns")
+                    table.add_row(
+                        "Delay Range",
+                        f"{min(delay_range):.1f} - {max(delay_range):.1f} ns",
+                    )
                     table.add_row("Delay Points", str(len(delay_range)))
 
             console.print(table)
@@ -92,7 +105,11 @@ def display_experiment_results(
                 for device, device_data in results["device_results"].items():
                     if isinstance(device_data, dict) and "analysis" in device_data:
                         analysis = device_data["analysis"]
-                        status = "✅ Success" if analysis.get("fit_success", False) else "⚠️ Partial"
+                        status = (
+                            "✅ Success"
+                            if analysis.get("fit_success", False)
+                            else "⚠️ Partial"
+                        )
                         data_points = len(analysis.get("data_points", []))
                     else:
                         status = "❌ Failed"
@@ -108,9 +125,9 @@ def display_experiment_results(
 
     if not use_rich:
         # Plain text fallback
-        print(f"\n{'='*50}")
+        print(f"\n{'=' * 50}")
         print(f"{experiment_type} Experiment Results")
-        print(f"{'='*50}")
+        print(f"{'=' * 50}")
 
         if "analysis" in results:
             analysis = results["analysis"]
@@ -120,7 +137,9 @@ def display_experiment_results(
             elif experiment_type == "Ramsey" and "estimated_t2_star" in analysis:
                 print(f"Estimated T2*: {analysis['estimated_t2_star']:.3f} ns")
                 if "estimated_frequency" in analysis:
-                    print(f"Detuning Frequency: {analysis['estimated_frequency']:.3f} MHz")
+                    print(
+                        f"Detuning Frequency: {analysis['estimated_frequency']:.3f} MHz"
+                    )
             elif experiment_type == "T2 Echo" and "estimated_t2" in analysis:
                 print(f"Estimated T2: {analysis['estimated_t2']:.3f} ns")
             elif experiment_type == "CHSH" and "s_value" in analysis:
@@ -141,18 +160,22 @@ def display_experiment_results(
                 print("\nDevice-Specific Results:")
                 for device, device_data in results["device_results"].items():
                     if isinstance(device_data, dict) and "analysis" in device_data:
-                        status = "Success" if device_data["analysis"].get("fit_success", False) else "Partial"
+                        status = (
+                            "Success"
+                            if device_data["analysis"].get("fit_success", False)
+                            else "Partial"
+                        )
                     else:
                         status = "Failed"
                     print(f"  {device}: {status}")
 
-        print(f"{'='*50}")
+        print(f"{'=' * 50}")
 
 
 def create_experiment_summary(
     results: dict[str, Any],
     experiment_type: str,
-    experiment_params: dict[str, Any] | None = None
+    experiment_params: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """
     Create a standardized experiment summary.
@@ -173,7 +196,7 @@ def create_experiment_summary(
         "summary_created": time.strftime("%Y-%m-%d %H:%M:%S"),
         "total_devices": 0,
         "successful_devices": 0,
-        "status": "unknown"
+        "status": "unknown",
     }
 
     # Add experiment parameters
@@ -193,7 +216,9 @@ def create_experiment_summary(
                     successful_count += 1
 
         summary["successful_devices"] = successful_count
-        summary["success_rate"] = successful_count / len(device_results) if device_results else 0.0
+        summary["success_rate"] = (
+            successful_count / len(device_results) if device_results else 0.0
+        )
 
     # Add main analysis results
     if "analysis" in results:
@@ -207,7 +232,9 @@ def create_experiment_summary(
             if "estimated_t2_star" in analysis:
                 summary["main_results"]["t2_star"] = analysis["estimated_t2_star"]
             if "estimated_frequency" in analysis:
-                summary["main_results"]["detuning_frequency"] = analysis["estimated_frequency"]
+                summary["main_results"]["detuning_frequency"] = analysis[
+                    "estimated_frequency"
+                ]
         elif experiment_type == "T2 Echo" and "estimated_t2" in analysis:
             summary["main_results"]["t2_time"] = analysis["estimated_t2"]
         elif experiment_type == "CHSH" and "s_value" in analysis:

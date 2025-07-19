@@ -153,9 +153,7 @@ class RamseyExperimentCLI(BaseExperimentCLI):
         max_delay: Annotated[
             int, typer.Option(help="Maximum delay time [ns]")
         ] = 200000,
-        detuning: Annotated[
-            float, typer.Option(help="Frequency detuning [MHz]")
-        ] = 0.0,
+        detuning: Annotated[float, typer.Option(help="Frequency detuning [MHz]")] = 0.0,
         enable_fitting: Annotated[
             bool, typer.Option(help="Enable T2*/detuning parameter fitting")
         ] = True,
