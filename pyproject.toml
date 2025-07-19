@@ -53,6 +53,7 @@ dependencies = [
     "rich>=13.0.0",
     "quri-parts-oqtopus>=1.0.3",
     "tranqu",
+    "qctrl-visualizer>=8.0.2",
 ]
 
 [project.urls]

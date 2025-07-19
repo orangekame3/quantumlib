@@ -5,15 +5,15 @@ Inherits from BaseExperiment and provides T2 Echo experiment-specific implementa
 """
 
 import time
-from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Any
 
 import numpy as np
 
 from ...core.base_experiment import BaseExperiment
+from ...core.parallel_execution import ParallelExecutionMixin
 
 
-class T2EchoExperiment(BaseExperiment):
+class T2EchoExperiment(BaseExperiment, ParallelExecutionMixin):
     """
     T2 Echo experiment class (Hahn Echo/CPMG)
 
@@ -164,73 +164,40 @@ class T2EchoExperiment(BaseExperiment):
     def _submit_t2_echo_circuits_parallel_with_order(
         self, circuits: list[Any], devices: list[str], shots: int, parallel_workers: int
     ) -> dict[str, list[dict]]:
-        """T2 Echo specialized parallel submission (preserving order)"""
+        """T2 Echo specialized parallel submission (using ParallelExecutionMixin)"""
         print(f"Enhanced T2 Echo parallel submission: {parallel_workers} workers")
 
-        all_job_data = {}
-
-        def submit_circuit_with_index(args):
-            circuit, device, circuit_index = args
+        # Use ParallelExecutionMixin for parallel execution
+        def submit_single_t2_echo_circuit(device, circuit, shots, circuit_idx):
+            """Submit a single T2 Echo circuit"""
             try:
                 job_id = self.submit_circuit_to_oqtopus(circuit, shots, device)
                 if job_id:
-                    delay_time = self.experiment_params["delay_times"][circuit_index]
-                    print(
-                        f"T2 Echo Circuit {circuit_index + 1} (τ={delay_time:.0f}ns) → {device}: {job_id[:8]}..."
-                    )
                     return {
-                        "device": device,
                         "job_id": job_id,
-                        "circuit_index": circuit_index,
-                        "delay_time": delay_time,
-                        "success": True,
+                        "device": device,
+                        "circuit_idx": circuit_idx,
+                        "shots": shots,
+                        "submitted": True,
+                        "submission_time": time.time(),
                     }
                 else:
-                    return {
-                        "device": device,
-                        "job_id": None,
-                        "circuit_index": circuit_index,
-                        "success": False,
-                    }
+                    return None
             except Exception as e:
-                print(f"❌ T2 Echo Circuit {circuit_index + 1} submission error: {e}")
-                return {
-                    "device": device,
-                    "job_id": None,
-                    "circuit_index": circuit_index,
-                    "success": False,
-                    "error": str(e),
-                }
+                delay_time = self.experiment_params["delay_times"][circuit_idx]
+                print(
+                    f"T2 Echo Circuit {circuit_idx} (τ={delay_time:.0f}ns) → {device}: {e}"
+                )
+                return None
 
-        # Execute parallel submission
-        with ThreadPoolExecutor(max_workers=parallel_workers) as executor:
-            submission_args = []
-            for device in devices:
-                for i, circuit in enumerate(circuits):
-                    submission_args.append((circuit, device, i))
-
-            futures = [
-                executor.submit(submit_circuit_with_index, args)
-                for args in submission_args
-            ]
-
-            for device in devices:
-                all_job_data[device] = []
-
-            for future in as_completed(futures):
-                result = future.result()
-                if result["success"]:
-                    all_job_data[result["device"]].append(result)
-
-        # Sort by order
-        for device in devices:
-            all_job_data[device].sort(key=lambda x: x["circuit_index"])
-            successful_jobs = [job for job in all_job_data[device] if job["success"]]
-            print(
-                f"✅ {device}: {len(successful_jobs)} T2 Echo jobs submitted (order preserved)"
-            )
-
-        return all_job_data
+        return self.submit_circuits_parallel_with_order(
+            circuits=circuits,
+            devices=devices,
+            shots=shots,
+            parallel_workers=parallel_workers,
+            submit_function=submit_single_t2_echo_circuit,
+            progress_name="T2 Echo Submission"
+        )
 
     def _collect_t2_echo_results_parallel_with_order(
         self,
@@ -452,7 +419,7 @@ class T2EchoExperiment(BaseExperiment):
         self, raw_results: dict[str, list[dict[str, Any]]]
     ) -> dict[str, Any]:
         """
-        T2 Echo結果解析（T1スタイル：ローカルシミュレーター対応）
+        T2 Echo result analysis (T1 style: compatible with local simulator)
         """
         if not raw_results:
             return {"error": "No results to analyze"}
@@ -481,7 +448,7 @@ class T2EchoExperiment(BaseExperiment):
         self, device_results: list[dict[str, Any]], delay_times: np.ndarray
     ) -> dict[str, Any]:
         """
-        単一デバイス結果解析（T1スタイル：ローカルシミュレーター対応）
+        Single device result analysis (T1 style: compatible with local simulator)
         """
         print(f"🔍 Analyzing {len(device_results)} T2 Echo results in order...")
 
@@ -494,14 +461,14 @@ class T2EchoExperiment(BaseExperiment):
 
                 print(f"🔍 Raw decimal counts: {counts}")
 
-                # P(0)確率計算（T2 Echo用）
+                # Calculate P(0) probability (for T2 Echo)
                 p0 = self._calculate_p0_probability(counts)
                 p0_values.append(p0)
 
                 binary_counts = self._convert_decimal_to_binary_counts(counts)
                 print(f"🔍 Converted binary counts: {binary_counts}")
 
-                # 最初の5点で順序デバッグ
+                # Debug order for first 5 points
                 if i < 5:
                     print(
                         f"🔍 Point {i}: τ={delay_time}ns, P(0)={p0:.3f}, counts={dict(counts)}"
@@ -511,7 +478,7 @@ class T2EchoExperiment(BaseExperiment):
                 if i < 5:
                     print(f"🔍 Point {i}: τ={delay_time}ns, FAILED")
 
-        # 順序確認のためのサマリー
+        # Summary for order verification
         valid_p0s = np.array([p for p in p0_values if not np.isnan(p)])
         if len(valid_p0s) >= 2:
             trend = "decreasing" if valid_p0s[-1] < valid_p0s[0] else "increasing"
@@ -519,7 +486,7 @@ class T2EchoExperiment(BaseExperiment):
                 f"📈 T2 Echo trend: P(0) {valid_p0s[0]:.3f} → {valid_p0s[-1]:.3f} ({trend})"
             )
 
-        # 統計計算
+        # Calculate statistics
         initial_p0 = float(valid_p0s[0]) if len(valid_p0s) > 0 else 0.5
         final_p0 = float(valid_p0s[-1]) if len(valid_p0s) > 0 else 0.5
         success_rate = len(valid_p0s) / len(p0_values) if p0_values else 0.0
@@ -543,10 +510,10 @@ class T2EchoExperiment(BaseExperiment):
             },
         }
 
-        # フィッティング
+        # Fitting
         if self.enable_fitting and len(valid_p0s) >= 3:
             try:
-                # NaN値を除いたデータでフィッティング
+                # Fitting with data excluding NaN values
                 valid_indices = [i for i, p in enumerate(p0_values) if not np.isnan(p)]
                 valid_delay_times = delay_times[valid_indices]
 
@@ -592,7 +559,7 @@ class T2EchoExperiment(BaseExperiment):
         self, delay_times: np.ndarray, p0_values: np.ndarray
     ) -> dict[str, Any]:
         """
-        T2 Echo減衰フィッティング（指数減衰）P(0)ベース
+        T2 Echo decay fitting (exponential decay) based on P(0)
         """
         try:
             from scipy.optimize import curve_fit
@@ -600,28 +567,28 @@ class T2EchoExperiment(BaseExperiment):
             raise ImportError("scipy is required for T2 fitting") from None
 
         def exponential_decay(t, a, t2, c):
-            """T2 Echo指数減衰モデル: P(0) = a * exp(-t/T2) + c"""
+            """T2 Echo exponential decay model: P(0) = a * exp(-t/T2) + c"""
             return a * np.exp(-t / t2) + c
 
         try:
-            # Qiskit T2 Hahn準拠の初期パラメータ設定
-            # 理論的に期待される値：P(0) = A * exp(-t/T2) + B
-            # A = 0.5 (振幅), B = 0.5 (ベースライン), T2 = expected_t2
-            a_init = 0.5  # 理論振幅
-            c_init = 0.5  # 理論ベースライン（0.5に収束）
-            t2_init = self.expected_t2  # 初期T2推定値
+            # Initial parameter settings compliant with Qiskit T2 Hahn
+            # Theoretically expected values: P(0) = A * exp(-t/T2) + B
+            # A = 0.5 (amplitude), B = 0.5 (baseline), T2 = expected_t2
+            a_init = 0.5  # Theoretical amplitude
+            c_init = 0.5  # Theoretical baseline (converges to 0.5)
+            t2_init = self.expected_t2  # Initial T2 estimate
 
-            # データに基づく微調整
+            # Fine-tuning based on data
             p0_max = np.max(p0_values)
             p0_min = np.min(p0_values)
-            if p0_max > 0.1 and p0_min < 0.9:  # 有意なデータがある場合
+            if p0_max > 0.1 and p0_min < 0.9:  # When significant data is available
                 data_amplitude = p0_max - p0_min
                 data_baseline = p0_min
-                # データと理論値の中間を取る
+                # Take the average between data and theoretical values
                 a_init = (0.5 + data_amplitude) / 2
                 c_init = (0.5 + data_baseline) / 2
 
-            # 物理的に合理的な境界条件でフィッティング実行
+            # Execute fitting with physically reasonable boundary conditions
             # amp: [0, 1], tau: [100ns, 1ms], base: [0, 1]
             popt, pcov = curve_fit(
                 exponential_decay,
@@ -634,7 +601,7 @@ class T2EchoExperiment(BaseExperiment):
 
             a_fitted, t2_fitted, c_fitted = popt
 
-            # フィッティング品質評価
+            # Evaluate fitting quality
             y_pred = exponential_decay(delay_times, *popt)
             ss_res = np.sum((p0_values - y_pred) ** 2)
             ss_tot = np.sum((p0_values - np.mean(p0_values)) ** 2)
@@ -656,7 +623,7 @@ class T2EchoExperiment(BaseExperiment):
             }
 
         except Exception as e:
-            # フィッティング失敗時のフォールバック
+            # Fallback when fitting fails
             return {
                 "t2_fitted": 0.0,
                 "amplitude_fitted": 0.0,
@@ -668,11 +635,11 @@ class T2EchoExperiment(BaseExperiment):
                 },
             }
 
-    # BaseExperiment抽象メソッドの実装
+    # Implementation of BaseExperiment abstract methods
     def save_experiment_data(
         self, results: dict[str, Any], metadata: dict[str, Any] = None
     ) -> str:
-        """T2 Echo実験データ保存"""
+        """Save T2 Echo experiment data"""
         timestamp = int(time.time())
 
         experiment_data = {
@@ -693,11 +660,11 @@ class T2EchoExperiment(BaseExperiment):
         )
 
     def save_complete_experiment_data(self, results: dict[str, Any]) -> str:
-        """完全なT2 Echo実験データ保存"""
-        # メイン結果保存
+        """Save complete T2 Echo experiment data"""
+        # Save main results
         main_path = self.save_experiment_data(results)
 
-        # デバイス別詳細保存
+        # Save device-specific details
         device_data = {}
         for device, device_result in results.get("device_results", {}).items():
             device_data[device] = {
@@ -710,7 +677,7 @@ class T2EchoExperiment(BaseExperiment):
 
         self.data_manager.save_data(device_data, "device_t2_echo_summary")
 
-        # プロット用データ保存
+        # Save data for plotting
         plot_data = {}
         for device, device_result in results.get("device_results", {}).items():
             plot_data[device] = {
@@ -721,7 +688,7 @@ class T2EchoExperiment(BaseExperiment):
 
         self.data_manager.save_data(plot_data, "t2_echo_p0_values_for_plotting")
 
-        # プロット生成
+        # Generate plot
         if hasattr(self, "generate_t2_echo_plot"):
             try:
                 self.generate_t2_echo_plot(results, save_plot=True, show_plot=False)
@@ -761,7 +728,7 @@ class T2EchoExperiment(BaseExperiment):
                 r_squared = fitting_quality.get("r_squared", 0.0)
                 color = colors[i % len(colors)]
 
-                # 実測データプロット
+                # Plot experimental data
                 ax.semilogx(
                     delay_times,
                     p0_values,
@@ -772,14 +739,14 @@ class T2EchoExperiment(BaseExperiment):
                     color=color,
                 )
 
-                # フィット曲線プロット
+                # Plot fitting curve
                 if t2_fitted > 0:
-                    # フィットされた指数減衰曲線を描画
+                    # Draw fitted exponential decay curve
                     fit_delays = np.logspace(
                         np.log10(min(delay_times)), np.log10(max(delay_times)), 100
                     )
 
-                    # T2 Echo減衰: P(t) = A * exp(-t/T2) + offset
+                    # T2 Echo decay: P(t) = A * exp(-t/T2) + offset
                     amplitude = device_data.get(
                         "amplitude_fitted",
                         max(p0_values) - min(p0_values) if p0_values else 0.5,
@@ -847,7 +814,7 @@ class T2EchoExperiment(BaseExperiment):
         return plot_filename
 
     def display_results(self, results: dict[str, Any], use_rich: bool = True) -> None:
-        """T2 Echo結果表示"""
+        """Display T2 Echo results"""
         if use_rich:
             try:
                 from rich.console import Console
@@ -899,7 +866,7 @@ class T2EchoExperiment(BaseExperiment):
 
                 console.print(table)
 
-                # 実験パラメータ表示
+                # Display experiment parameters
                 echo_type = self.experiment_params.get("echo_type", "hahn")
                 num_echoes = self.experiment_params.get("num_echoes", 1)
                 max_delay = self.experiment_params.get("max_delay", 0) / 1000  # μs
@@ -919,7 +886,7 @@ class T2EchoExperiment(BaseExperiment):
             self._display_results_simple(results)
 
     def _display_results_simple(self, results: dict[str, Any]) -> None:
-        """シンプルなT2 Echo結果表示"""
+        """Simple T2 Echo results display"""
         print("\n=== T2 Echo Results ===")
         for device, device_result in results.get("device_results", {}).items():
             t2_fitted = device_result.get("t2_fitted", 0.0)
