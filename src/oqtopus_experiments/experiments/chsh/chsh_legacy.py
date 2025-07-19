@@ -271,7 +271,7 @@ def plot_s_vs_phase(phase_range, S_values, save_path=None, show_theory=True):
     ax1.grid(True, alpha=0.3)
 
     # Right plot: Detailed view around maximum
-    max_idx = np.argmax(S_values)
+    max_idx = int(np.argmax(S_values))
     zoom_range = 5  # Number of points around maximum
     start_idx = max(0, max_idx - zoom_range // 2)
     end_idx = min(len(phase_range), max_idx + zoom_range // 2 + 1)

@@ -495,7 +495,8 @@ class CHSHExperiment(BaseExperiment, ParallelExecutionMixin):
         self,
         devices: list[str] = ["qulacs"],
         shots: int = 1024,
-        parallel_workers: int = 4,
+        submit_interval: float = 1.0,
+        wait_minutes: int = 30,
         **kwargs,
     ) -> dict[str, Any]:
         """
@@ -504,7 +505,7 @@ class CHSHExperiment(BaseExperiment, ParallelExecutionMixin):
         # Since base_cli calls parallel methods directly, only basic result collection is needed here
         print("⚠️ run_experiment called directly - use CLI framework instead")
         return self.run_chsh_experiment_parallel(
-            devices=devices, shots=shots, parallel_workers=parallel_workers, **kwargs
+            devices=devices, shots=shots, parallel_workers=4, **kwargs
         )
 
     def run_4_measurement_chsh(

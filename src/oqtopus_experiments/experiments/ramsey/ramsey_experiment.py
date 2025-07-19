@@ -204,7 +204,9 @@ class RamseyExperiment(BaseExperiment, ParallelExecutionMixin):
         """Parallel execution of Ramsey circuits on local simulator"""
         print(f"Ramsey Local parallel execution: {parallel_workers} workers")
 
-        all_job_data = {device: [None] * len(circuits) for device in devices}
+        all_job_data: dict[str, list[dict[str, Any] | None]] = {
+            device: [None] * len(circuits) for device in devices
+        }
 
         circuit_device_pairs = []
         for circuit_idx, circuit in enumerate(circuits):

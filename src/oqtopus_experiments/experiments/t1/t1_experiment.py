@@ -58,6 +58,7 @@ class T1Experiment(BaseExperiment, ParallelExecutionMixin):
             self.mitigation_options = {"ro_error_mitigation": "pseudo_inverse"}
             print("T1 experiment: Standard T1 measurement with readout mitigation")
         self.mitigation_info = self.mitigation_options
+        self._debug_count: int = 0
 
     def create_circuits(self, **kwargs) -> list[Any]:
         """
@@ -162,7 +163,9 @@ class T1Experiment(BaseExperiment, ParallelExecutionMixin):
             )
 
         # Data structure for preserving order
-        all_job_data = {device: [None] * len(circuits) for device in devices}
+        all_job_data: dict[str, list[dict[str, Any] | None]] = {
+            device: [None] * len(circuits) for device in devices
+        }
 
         # Create circuit and device pairs (preserving delay_time order)
         circuit_device_pairs = []
@@ -233,7 +236,9 @@ class T1Experiment(BaseExperiment, ParallelExecutionMixin):
         """Parallel execution of T1 circuits on local simulator"""
         print(f"T1 Local parallel execution: {parallel_workers} workers")
 
-        all_job_data = {device: [None] * len(circuits) for device in devices}
+        all_job_data: dict[str, list[dict[str, Any] | None]] = {
+            device: [None] * len(circuits) for device in devices
+        }
 
         circuit_device_pairs = []
         for circuit_idx, circuit in enumerate(circuits):
@@ -602,7 +607,7 @@ class T1Experiment(BaseExperiment, ParallelExecutionMixin):
         Collection of single T1 result
         """
         try:
-            result = self.get_oqtopus_result(job_id, wait_minutes=10)
+            result = self.get_oqtopus_result(job_id, timeout_minutes=10)
             return device, result, job_id, circuit_idx, True
         except Exception as e:
             delay_time = self.experiment_params["delay_times"][circuit_idx]
@@ -615,14 +620,15 @@ class T1Experiment(BaseExperiment, ParallelExecutionMixin):
         self,
         devices: list[str] = ["qulacs"],
         shots: int = 1024,
-        parallel_workers: int = 4,
+        submit_interval: float = 1.0,
+        wait_minutes: int = 30,
         **kwargs,
     ) -> dict[str, Any]:
         """
         T1 experiment execution (parallelized version calling run_t1_experiment_parallel)
         """
         return self.run_t1_experiment_parallel(
-            devices=devices, shots=shots, parallel_workers=parallel_workers, **kwargs
+            devices=devices, shots=shots, parallel_workers=4, **kwargs
         )
 
     def _create_single_t1_circuit(self, delay_time: float):
@@ -667,7 +673,7 @@ class T1Experiment(BaseExperiment, ParallelExecutionMixin):
 
         delay_times = np.array(self.experiment_params["delay_times"])
 
-        analysis = {
+        analysis: dict[str, Any] = {
             "experiment_info": {
                 "delay_points": len(delay_times),
                 "expected_t1": self.expected_t1,
@@ -687,8 +693,9 @@ class T1Experiment(BaseExperiment, ParallelExecutionMixin):
                 device_analysis["p1_values"], delay_times
             )
 
-            analysis["device_results"][device]["t1_fitted"] = t1_fitted
-            analysis["device_results"][device]["fitting_quality"] = fitting_quality
+            device_result_dict = analysis["device_results"][device]
+            device_result_dict["t1_fitted"] = t1_fitted
+            device_result_dict["fitting_quality"] = fitting_quality
 
             quality_str = (
                 f"({fitting_quality['method']}, R²={fitting_quality['r_squared']:.3f})"
@@ -706,7 +713,8 @@ class T1Experiment(BaseExperiment, ParallelExecutionMixin):
                 )
 
         # Inter-device comparison
-        analysis["comparison"] = self._compare_devices(analysis["device_results"])
+        device_results_typed: dict[str, dict[str, Any]] = analysis["device_results"]
+        analysis["comparison"] = self._compare_devices(device_results_typed)
 
         return analysis
 
@@ -840,7 +848,7 @@ class T1Experiment(BaseExperiment, ParallelExecutionMixin):
 
         return binary_counts
 
-    def _calculate_z_expectation(self, counts: dict[str, int]) -> float:
+    def _calculate_z_expectation(self, counts: dict[str | int, int]) -> float:
         """
         Calculate <Z> expectation value (readout error resistant)
         """
@@ -849,7 +857,7 @@ class T1Experiment(BaseExperiment, ParallelExecutionMixin):
             return 0.0
 
         # Get counts
-        if isinstance(list(counts.keys())[0], str):
+        if counts and isinstance(list(counts.keys())[0], str):
             n_0 = counts.get("0", 0)
             n_1 = counts.get("1", 0)
         else:

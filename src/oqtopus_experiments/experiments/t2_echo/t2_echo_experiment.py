@@ -216,7 +216,7 @@ class T2EchoExperiment(BaseExperiment, ParallelExecutionMixin):
         successful_count = 0
 
         for device, device_job_data in job_data.items():
-            device_results = []
+            device_results: list[dict[str, Any]] = []
 
             # Sort by circuit_index to preserve order
             sorted_jobs = sorted(device_job_data, key=lambda x: x["circuit_index"])
@@ -392,7 +392,7 @@ class T2EchoExperiment(BaseExperiment, ParallelExecutionMixin):
         """
         Convert OQTOPUS decimal counts to binary counts
         """
-        binary_counts = {}
+        binary_counts: dict[str, int] = {}
         for decimal_str, count in counts.items():
             try:
                 decimal_value = int(decimal_str)
@@ -416,12 +416,12 @@ class T2EchoExperiment(BaseExperiment, ParallelExecutionMixin):
         return p0
 
     def analyze_results(
-        self, raw_results: dict[str, list[dict[str, Any]]]
+        self, results: dict[str, list[dict[str, Any]]], **kwargs: Any
     ) -> dict[str, Any]:
         """
         T2 Echo result analysis (T1 style: compatible with local simulator)
         """
-        if not raw_results:
+        if not results:
             return {"error": "No results to analyze"}
 
         delay_times = np.array(self.experiment_params["delay_times"])
@@ -435,7 +435,7 @@ class T2EchoExperiment(BaseExperiment, ParallelExecutionMixin):
             "device_results": {},
         }
 
-        for device, device_results in raw_results.items():
+        for device, device_results in results.items():
             if not device_results:
                 continue
 
