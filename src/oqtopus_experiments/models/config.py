@@ -1,6 +1,7 @@
 from pydantic import Field, field_validator
 
 from .base import BaseConfigModel
+from .experiments import CHSHParameters
 
 
 class ExperimentSettings(BaseConfigModel):
@@ -81,23 +82,6 @@ class OQTOPUSSettings(BaseConfigModel):
     )
     mitigation_options: MitigationOptions = Field(
         default_factory=MitigationOptions, description="Error mitigation configuration"
-    )
-
-
-class CHSHParameters(BaseConfigModel):
-    standard_theta_a: float = Field(
-        default=0.0, description="Standard theta_a value for CHSH experiment"
-    )
-    standard_theta_b: float = Field(
-        default=0.7853981633974483,
-        description="Standard theta_b value for CHSH experiment",
-    )
-    classical_bound: float = Field(
-        default=2.0, description="Classical bound for CHSH inequality"
-    )
-    theoretical_max: float = Field(
-        default=2.8284271247461903,
-        description="Theoretical maximum value for CHSH inequality",
     )
 
 

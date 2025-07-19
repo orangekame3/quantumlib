@@ -14,8 +14,19 @@ tasks:
       - uv run ruff check src workspace
     desc: "Check code with ruff"
 
+  mypy:
+    cmds:
+      - uv run mypy src --ignore-missing-imports --no-strict-optional
+    desc: "Run type checking with mypy"
+      
+  mypy-strict:
+    cmds:
+      - uv run mypy src workspace
+    desc: "Run strict type checking with mypy"
+
   check:
     cmds:
       - task: fmt
       - task: lint
+      - task: mypy
     desc: "Run all fixes and checks"

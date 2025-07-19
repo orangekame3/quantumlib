@@ -84,7 +84,7 @@ class ParityCircuitFactory:
 
     @staticmethod
     def create_parity_scan_circuits(
-        num_qubits: int, delay_us: float = 0.0, phase_points: int = None
+        num_qubits: int, delay_us: float = 0.0, phase_points: int | None = None
     ) -> list[Any]:
         """
         Create a set of circuits for parity oscillation scan
@@ -113,7 +113,9 @@ class ParityCircuitFactory:
 
     @staticmethod
     def create_coherence_decay_circuits(
-        num_qubits_list: list[int], delays_us: list[float], phase_points: int = None
+        num_qubits_list: list[int],
+        delays_us: list[float],
+        phase_points: int | None = None,
     ) -> tuple[list[Any], list[dict]]:
         """
         Create complete set of circuits for coherence decay study
@@ -165,7 +167,7 @@ def create_ghz_with_delay_rotation(
 
 
 def create_parity_scan_circuits(
-    num_qubits: int, delay_us: float = 0.0, phase_points: int = None
+    num_qubits: int, delay_us: float = 0.0, phase_points: int | None = None
 ) -> list[Any]:
     """
     Convenience function for creating parity oscillation scan circuits
@@ -176,7 +178,7 @@ def create_parity_scan_circuits(
 
 
 def create_coherence_decay_circuits(
-    num_qubits_list: list[int], delays_us: list[float], phase_points: int = None
+    num_qubits_list: list[int], delays_us: list[float], phase_points: int | None = None
 ) -> tuple[list[Any], list[dict]]:
     """
     Convenience function for creating coherence decay study circuits

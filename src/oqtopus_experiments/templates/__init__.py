@@ -3,4 +3,4 @@
 Templates module - Templates and samples
 """
 
-__all__ = []
+__all__: list[str] = []

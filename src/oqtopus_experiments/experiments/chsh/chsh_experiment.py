@@ -28,10 +28,34 @@ class CHSHExperiment(BaseExperiment, ParallelExecutionMixin):
 
     def __init__(self, experiment_name: str = None, **kwargs):
         # Extract CHSH experiment-specific parameters (not passed to BaseExperiment)
-        chsh_specific_params = {"phase_points", "theta_a", "theta_b", "points"}
+        chsh_specific_params = {
+            "phase_points",
+            "theta_a",
+            "theta_b",
+            "points",
+            "angles",
+        }
+
+        # CLI parameters that should not be passed to BaseExperiment
+        cli_only_params = {
+            "shots",
+            "backend",
+            "devices",
+            "parallel",
+            "no_save",
+            "no_plot",
+            "show_plot",
+            "verbose",
+        }
 
         # Filter kwargs to pass to BaseExperiment
-        base_kwargs = {k: v for k, v in kwargs.items() if k not in chsh_specific_params}
+        base_kwargs = {
+            k: v
+            for k, v in kwargs.items()
+            if k not in chsh_specific_params
+            and k not in cli_only_params
+            and k != "experiment_name"
+        }
         super().__init__(experiment_name, **base_kwargs)
 
         # CHSH experiment-specific settings
@@ -572,7 +596,7 @@ class CHSHExperiment(BaseExperiment, ParallelExecutionMixin):
     def run_angle_comparison(
         self,
         devices: list[str] = ["qulacs"],
-        angle_pairs: list[tuple] = None,
+        angle_pairs: list[tuple] | None = None,
         shots: int = 1024,
         **kwargs,
     ) -> dict[str, Any]:
