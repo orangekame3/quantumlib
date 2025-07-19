@@ -182,7 +182,7 @@ class BaseExperiment(ABC):
                 print("Local simulator also not available")
                 return {device: [] for device in devices}
 
-        all_job_ids = {device: [] for device in devices}
+        all_job_ids: dict[str, list[str]] = {device: [] for device in devices}
         submission_tasks = []
 
         def submit_single_circuit(circuit, device, index):
@@ -486,7 +486,7 @@ class BaseExperiment(ABC):
 
         def collect_from_device(device_data):
             device, device_job_ids = device_data
-            device_results = [None] * len(device_job_ids)
+            device_results: list[dict[str, Any] | None] = [None] * len(device_job_ids)
 
             # Collect results with index to maintain order
             for i, job_id in enumerate(device_job_ids):
@@ -598,7 +598,10 @@ class BaseExperiment(ABC):
 
         # 2. Parallel submission
         job_ids = self.submit_circuits_parallel(
-            circuits, devices, shots, submit_interval
+            circuits,
+            devices,
+            shots,
+            4,  # Use default parallel_workers = 4
         )
 
         # 3. Result collection

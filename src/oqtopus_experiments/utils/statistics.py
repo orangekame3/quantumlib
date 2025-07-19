@@ -137,7 +137,14 @@ def estimate_parameters_with_quality(
             )
 
         # Calculate parameter uncertainties
-        param_errors = np.sqrt(np.diag(pcov)) if pcov is not None else [0.0] * len(popt)
+        param_errors_array = (
+            np.sqrt(np.diag(pcov)) if pcov is not None else np.array([0.0] * len(popt))
+        )
+        param_errors = (
+            param_errors_array.tolist()
+            if hasattr(param_errors_array, "tolist")
+            else list(param_errors_array)
+        )
 
         # Calculate fit quality metrics
         y_fitted = fit_function(x_valid, *popt)
@@ -150,7 +157,7 @@ def estimate_parameters_with_quality(
 
         return {
             "fitted_params": popt.tolist(),
-            "param_errors": param_errors.tolist(),
+            "param_errors": param_errors,
             "fit_quality": {
                 "r_squared": float(r_squared),
                 "residual_std": float(residual_std),

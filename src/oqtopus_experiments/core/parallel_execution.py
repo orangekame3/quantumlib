@@ -28,7 +28,7 @@ class ParallelExecutionMixin:
         submit_function: Callable,
         progress_name: str = "Submission",
         **kwargs,
-    ) -> dict[str, list[dict[str, Any]]]:
+    ) -> dict[str, list[dict[str, Any] | None]]:
         """
         Submit circuits in parallel across devices while preserving order.
 
@@ -49,7 +49,9 @@ class ParallelExecutionMixin:
             for circuit_idx, circuit in enumerate(circuits):
                 submission_tasks.append((device, circuit, shots, circuit_idx))
 
-        all_jobs = {device: [None] * len(circuits) for device in devices}
+        all_jobs: dict[str, list[dict[str, Any] | None]] = {
+            device: [None] * len(circuits) for device in devices
+        }
 
         def submit_single_circuit(args):
             device, circuit, shots, circuit_idx = args
@@ -135,7 +137,7 @@ class ParallelExecutionMixin:
                 if job_info and job_info.get("submitted", False):
                     job_collection_tasks.append((device, job_info, circuit_idx))
 
-        all_results = {
+        all_results: dict[str, list[dict[str, Any] | None]] = {
             device: [None] * len(device_jobs)
             for device, device_jobs in job_data.items()
         }
@@ -239,12 +241,14 @@ class ParallelExecutionMixin:
                 if result and result.get("status") == "completed":
                     elapsed = time.time() - start_time
                     print(f"✅ {device}: {job_id[:8]}... completed ({elapsed:.1f}s)")
-                    return result
+                    completed_result: dict[str, Any] = dict(result)
+                    return completed_result
                 elif result and result.get("status") in ["failed", "cancelled"]:
                     elapsed = time.time() - start_time
                     status = result.get("status", "unknown")
                     print(f"❌ {device}: {job_id[:8]}... {status} ({elapsed:.1f}s)")
-                    return result
+                    result_dict: dict[str, Any] = dict(result)
+                    return result_dict
 
                 # Check timeout
                 if time.time() - start_time > timeout_seconds:

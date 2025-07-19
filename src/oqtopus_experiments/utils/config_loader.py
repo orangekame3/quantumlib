@@ -30,7 +30,8 @@ class ConfigLoader:
     @staticmethod
     def load_legacy_config_as_dict(config_path: str | Path) -> dict[str, Any]:
         with open(config_path) as f:
-            return json.load(f)
+            data: dict[str, Any] = json.load(f)
+            return data
 
     @staticmethod
     def migrate_config_to_pydantic(

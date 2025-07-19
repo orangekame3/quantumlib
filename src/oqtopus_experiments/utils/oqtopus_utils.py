@@ -7,7 +7,7 @@ and quantum experiment systems.
 
 
 def convert_decimal_to_binary_counts(
-    decimal_counts: dict[str, int], num_qubits: int = 1
+    decimal_counts: dict[str | int, int], num_qubits: int = 1
 ) -> dict[str, int]:
     """
     Convert OQTOPUS decimal counts to binary format.
@@ -37,6 +37,7 @@ def convert_decimal_to_binary_counts(
 
     for decimal_key, count in decimal_counts.items():
         # Handle both string and numeric keys
+        decimal_value: int
         if isinstance(decimal_key, str):
             try:
                 decimal_value = int(decimal_key)

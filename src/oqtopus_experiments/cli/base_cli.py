@@ -185,7 +185,7 @@ class BaseExperimentCLI(ABC):
 
             self.console.print("   📊 Collecting T1 results...")
             try:
-                raw_results = (
+                raw_results: dict[Any, Any] = (
                     experiment_instance._collect_t1_results_parallel_with_order(
                         job_data, parallel_workers
                     )
@@ -210,7 +210,7 @@ class BaseExperimentCLI(ABC):
 
             self.console.print("   📊 Collecting Ramsey results...")
             try:
-                raw_results = (
+                ramsey_results: dict[Any, Any] = (
                     experiment_instance._collect_ramsey_results_parallel_with_order(
                         job_data, parallel_workers
                     )
@@ -220,7 +220,7 @@ class BaseExperimentCLI(ABC):
                 self.console.print(f"   ❌ Ramsey collection failed: {e}")
                 raise
 
-            return raw_results
+            return ramsey_results
 
         # Use dedicated parallel implementation for T2 Echo experiments (without progress bar)
         if hasattr(experiment_instance, "_submit_t2_echo_circuits_parallel_with_order"):
@@ -235,7 +235,7 @@ class BaseExperimentCLI(ABC):
 
             self.console.print("   📊 Collecting T2 Echo results...")
             try:
-                raw_results = (
+                t2_echo_results: dict[Any, Any] = (
                     experiment_instance._collect_t2_echo_results_parallel_with_order(
                         job_data, parallel_workers
                     )
@@ -245,7 +245,7 @@ class BaseExperimentCLI(ABC):
                 self.console.print(f"   ❌ T2 Echo collection failed: {e}")
                 raise
 
-            return raw_results
+            return t2_echo_results
 
         # Use dedicated parallel implementation for CHSH experiments (without progress bar)
         if hasattr(experiment_instance, "_submit_chsh_circuits_parallel_with_order"):
@@ -260,7 +260,7 @@ class BaseExperimentCLI(ABC):
 
             self.console.print("   📊 Collecting CHSH results...")
             try:
-                raw_results = (
+                chsh_results: dict[Any, Any] = (
                     experiment_instance._collect_chsh_results_parallel_with_order(
                         job_data, parallel_workers
                     )
@@ -270,7 +270,7 @@ class BaseExperimentCLI(ABC):
                 self.console.print(f"   ❌ CHSH collection failed: {e}")
                 raise
 
-            return raw_results
+            return chsh_results
 
         # Normal parallel execution (as usual)
         with Progress(
@@ -296,12 +296,12 @@ class BaseExperimentCLI(ABC):
                 "Collecting results...", total=len(circuits) * len(devices)
             )
 
-            raw_results = experiment_instance.collect_results_parallel(
-                job_data, parallel_workers
+            general_results: dict[Any, Any] = (
+                experiment_instance.collect_results_parallel(job_data, parallel_workers)
             )
             progress.update(collect_task, completed=len(circuits) * len(devices))
 
-        return raw_results
+        return general_results
 
     def _run_local_execution(
         self,

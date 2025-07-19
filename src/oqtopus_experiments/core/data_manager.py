@@ -60,7 +60,8 @@ class SimpleDataManager:
             self.files.append(path)
 
         print(f"📊 Saved: {len(saved_files)} plot files")
-        return saved_files[0] if saved_files else None
+        first_file: str | None = saved_files[0] if saved_files else None
+        return first_file
 
     def save_data(self, data: dict[str, Any], name: str) -> str:
         """

@@ -151,7 +151,7 @@ def load_experiment_data(file_path: str) -> dict[str, Any]:
     """
     try:
         with open(file_path, encoding="utf-8") as f:
-            data = json.load(f)
+            data: dict[str, Any] = json.load(f)
 
         print(f"📁 Experiment data loaded: {file_path}")
         return data

@@ -190,7 +190,7 @@ def create_experiment_summary(
     Returns:
         Standardized summary dictionary
     """
-    summary = {
+    summary: dict[str, Any] = {
         "experiment_type": experiment_type,
         "timestamp": time.time(),
         "summary_created": time.strftime("%Y-%m-%d %H:%M:%S"),
@@ -222,7 +222,7 @@ def create_experiment_summary(
 
     # Add main analysis results
     if "analysis" in results:
-        analysis = results["analysis"]
+        analysis: dict[str, Any] = results["analysis"]
         summary["main_results"] = {}
 
         # Experiment-specific main results
