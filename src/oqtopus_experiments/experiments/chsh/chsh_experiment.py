@@ -1340,7 +1340,7 @@ class CHSHExperiment(BaseExperiment, ParallelExecutionMixin):
         ax.set_xlabel("Phase φ [rad]", fontsize=14)
         ax.set_ylabel("CHSH Parameter S", fontsize=14)
         ax.set_title(
-            "QuantumLib CHSH: 4-Measurement Bell Inequality Test",
+            "OQTOPUS Experiments CHSH: 4-Measurement Bell Inequality Test",
             fontsize=16,
             fontweight="bold",
         )

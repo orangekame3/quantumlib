@@ -8,7 +8,7 @@ from typing import Annotated, Any
 import numpy as np
 import typer
 
-from quantumlib.cli.base_cli import (
+from oqtopus_experiments.cli.base_cli import (
     BaseExperimentCLI,
     CommonBackendOption,
     CommonDevicesOption,
@@ -22,7 +22,7 @@ from quantumlib.cli.base_cli import (
     DeviceType,
     ExperimentBackend,
 )
-from quantumlib.experiments.t1.t1_experiment import T1Experiment
+from oqtopus_experiments.experiments.t1.t1_experiment import T1Experiment
 
 
 class T1ExperimentCLI(BaseExperimentCLI):

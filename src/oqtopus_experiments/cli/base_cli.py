@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Base CLI Framework - QuantumLib experiment CLI common framework
+Base CLI Framework - OQTOPUS Experiments experiment CLI common framework
 Base class inherited by all experiment CLIs
 """
 

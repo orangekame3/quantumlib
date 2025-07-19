@@ -1,7 +1,7 @@
 [project]
-name = "quantumlib"
+name = "oqtopus-experiments"
 version = "0.1.0"
-description = "A modular quantum computing framework optimized for research and experimentation"
+description = "A quantum computing experiment library for OQTOPUS platform"
 readme = "README.md"
 requires-python = ">=3.12"
 license = {text = "MIT"}
@@ -57,17 +57,17 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/orangekame3/quantumlib"
-Repository = "https://github.com/orangekame3/quantumlib"
-Documentation = "https://github.com/orangekame3/quantumlib#readme"
-Issues = "https://github.com/orangekame3/quantumlib/issues"
+Homepage = "https://github.com/orangekame3/oqtopus-experiments"
+Repository = "https://github.com/orangekame3/oqtopus-experiments"
+Documentation = "https://github.com/orangekame3/oqtopus-experiments#readme"
+Issues = "https://github.com/orangekame3/oqtopus-experiments/issues"
 
 [project.scripts]
-quantumlib-chsh = "quantumlib.cli.chsh:main"
-quantumlib-rabi = "quantumlib.cli.rabi:main"
-quantumlib-ramsey = "quantumlib.cli.ramsey:main"
-quantumlib-t1 = "quantumlib.cli.t1:main"
-quantumlib-t2-echo = "quantumlib.cli.t2_echo:main"
+oqtopus-chsh = "oqtopus_experiments.cli.chsh:main"
+oqtopus-rabi = "oqtopus_experiments.cli.rabi:main"
+oqtopus-ramsey = "oqtopus_experiments.cli.ramsey:main"
+oqtopus-t1 = "oqtopus_experiments.cli.t1:main"
+oqtopus-t2-echo = "oqtopus_experiments.cli.t2_echo:main"
 
 [dependency-groups]
 dev = [

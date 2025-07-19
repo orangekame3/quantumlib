@@ -1,29 +1,26 @@
-# QuantumLib
+# OQTOPUS Experiments
 
-A modular quantum computing framework for research and experimentation.
+A modular quantum computing experiment library for the OQTOPUS platform.
 
 ## Installation
 
 ```bash
-pip install git+https://github.com/orangekame3/quantumlib.git
+pip install git+https://github.com/orangekame3/oqtopus-experiments.git
 ```
 
 ## Quick Start
 
 ```bash
 # CHSH Bell test
-quantumlib-chsh run --devices qulacs --shots 1000 --points 20
+oqtopus-chsh run --devices qulacs --shots 1000 --points 20
 
 # Rabi oscillations
-quantumlib-rabi run --devices qulacs --shots 1000 --points 40 --backend oqtopus --parallel 20
-
-# Parity oscillations (GHZ decoherence)
-quantumlib-parity-oscillation run --num-qubits 1 2 3 4 --delays 0 1 2 4 --shots 1000
+oqtopus-rabi run --devices qulacs --shots 1000 --points 40 --backend oqtopus --parallel 20
 
 # Other experiments
-quantumlib-ramsey run --devices qulacs --shots 1000 --points 30
-quantumlib-t1 run --devices qulacs --shots 2000 --points 25 --backend oqtopus --parallel 8
-quantumlib-t2-echo run --devices qulacs --shots 1000 --points 20 --backend oqtopus
+oqtopus-ramsey run --devices qulacs --shots 1000 --points 30
+oqtopus-t1 run --devices qulacs --shots 2000 --points 25 --backend oqtopus --parallel 8
+oqtopus-t2-echo run --devices qulacs --shots 1000 --points 20 --backend oqtopus
 ```
 
 ## Usage
@@ -45,10 +42,10 @@ All commands support these options:
 
 ```bash
 # Basic usage
-quantumlib-chsh run --devices qulacs --shots 1000 --points 20
+oqtopus-chsh run --devices qulacs --shots 1000 --points 20
 
 # High-resolution scan with parallel execution
-quantumlib-chsh run --devices qulacs --shots 5000 --points 50 --backend oqtopus --parallel 10
+oqtopus-chsh run --devices qulacs --shots 5000 --points 50 --backend oqtopus --parallel 10
 ```
 
 Options:
@@ -59,10 +56,10 @@ Options:
 
 ```bash
 # Basic usage
-quantumlib-rabi run --devices qulacs --shots 1000 --points 20 --max-amplitude 6.28
+oqtopus-rabi run --devices qulacs --shots 1000 --points 20 --max-amplitude 6.28
 
 # High-resolution scan with more parallel workers
-quantumlib-rabi run --devices qulacs --shots 1000 --points 40 --backend oqtopus --parallel 20
+oqtopus-rabi run --devices qulacs --shots 1000 --points 40 --backend oqtopus --parallel 20
 ```
 
 Options:
@@ -76,13 +73,13 @@ Study the decoherence of GHZ states through parity oscillation measurements, bas
 
 ```bash
 # Basic usage - test 1-4 qubit GHZ states
-quantumlib-parity-oscillation run --num-qubits 1 2 3 4 --delays 0 1 2 4 --shots 1000
+oqtopus-parity-oscillation run --num-qubits 1 2 3 4 --delays 0 1 2 4 --shots 1000
 
 # High-resolution decoherence study
-quantumlib-parity-oscillation run --num-qubits 1 2 3 4 5 --delays 0 1 2 4 8 16 --shots 2000 --show-plot
+oqtopus-parity-oscillation run --num-qubits 1 2 3 4 5 --delays 0 1 2 4 8 16 --shots 2000 --show-plot
 
 # Quick test with custom phase points
-quantumlib-parity-oscillation run --num-qubits 2 3 --delays 0 2 --phase-points 9 --shots 512
+oqtopus-parity-oscillation run --num-qubits 2 3 --delays 0 2 --phase-points 9 --shots 512
 ```
 
 Options:
@@ -95,13 +92,13 @@ Options:
 
 ```bash
 # Ramsey interference
-quantumlib-ramsey run --devices qulacs --shots 1000 --points 30
+oqtopus-ramsey run --devices qulacs --shots 1000 --points 30
 
 # T1 relaxation time measurement
-quantumlib-t1 run --devices qulacs --shots 2000 --points 25 --backend oqtopus --parallel 8
+oqtopus-t1 run --devices qulacs --shots 2000 --points 25 --backend oqtopus --parallel 8
 
 # T2 coherence time with echo
-quantumlib-t2-echo run --devices qulacs --shots 1000 --points 20 --backend oqtopus
+oqtopus-t2-echo run --devices qulacs --shots 1000 --points 20 --backend oqtopus
 ```
 
 ### Help
@@ -109,21 +106,21 @@ quantumlib-t2-echo run --devices qulacs --shots 1000 --points 20 --backend oqtop
 Get detailed help for any command:
 
 ```bash
-quantumlib-chsh --help
-quantumlib-rabi --help
-quantumlib-parity-oscillation --help
+oqtopus-chsh --help
+oqtopus-rabi --help
+oqtopus-parity-oscillation --help
 ```
 
 ## Library Usage
 
-You can also use QuantumLib directly in Python code:
+You can also use OQTOPUS Experiments directly in Python code:
 
 ### Basic Example
 
 ```python
-from quantumlib.experiments.chsh.chsh_experiment import CHSHExperiment
-from quantumlib.experiments.rabi.rabi_experiment import RabiExperiment
-from quantumlib.experiments.parity_oscillation import ParityOscillationExperiment
+from oqtopus_experiments.experiments.chsh.chsh_experiment import CHSHExperiment
+from oqtopus_experiments.experiments.rabi.rabi_experiment import RabiExperiment
+from oqtopus_experiments.experiments.parity_oscillation import ParityOscillationExperiment
 
 # CHSH Bell inequality test
 chsh = CHSHExperiment()

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Simple Data Manager for QuantumLib Project
+Simple Data Manager for OQTOPUS Experiments Project
 Simple and unified data storage system
 """
 

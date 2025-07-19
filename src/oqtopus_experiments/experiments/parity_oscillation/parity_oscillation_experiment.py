@@ -577,7 +577,7 @@ class ParityOscillationExperiment(BaseExperiment):
 
         # Main title with device information
         fig.suptitle(
-            f"QuantumLib Parity Oscillation (GHZ Decoherence) Experiment - {device_name}",
+            f"OQTOPUS Experiments Parity Oscillation (GHZ Decoherence) Experiment - {device_name}",
             fontsize=16,
             fontweight="bold",
         )

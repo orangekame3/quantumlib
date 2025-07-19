@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Rabi CLI - QuantumLib Rabi Oscillation Experiment
+Rabi CLI - OQTOPUS Experiments Rabi Oscillation Experiment
 """
 
 from typing import Annotated, Any
@@ -8,7 +8,7 @@ from typing import Annotated, Any
 import numpy as np
 import typer
 
-from quantumlib.cli.base_cli import (
+from oqtopus_experiments.cli.base_cli import (
     BaseExperimentCLI,
     CommonBackendOption,
     CommonDevicesOption,
@@ -22,17 +22,17 @@ from quantumlib.cli.base_cli import (
     DeviceType,
     ExperimentBackend,
 )
-from quantumlib.experiments.rabi.rabi_experiment import RabiExperiment
+from oqtopus_experiments.experiments.rabi.rabi_experiment import RabiExperiment
 
 
 class RabiExperimentCLI(BaseExperimentCLI):
     """
-    Rabi experiment dedicated CLI (using QuantumLib integrated framework)
+    Rabi experiment dedicated CLI (using OQTOPUS Experiments integrated framework)
     """
 
     def __init__(self):
         super().__init__(
-            experiment_name="Rabi", help_text="QuantumLib Rabi Oscillation Experiment"
+            experiment_name="Rabi", help_text="OQTOPUS Experiments Rabi Oscillation Experiment"
         )
 
     def get_experiment_class(self):
@@ -55,7 +55,7 @@ class RabiExperimentCLI(BaseExperimentCLI):
         points = kwargs.get("points", 20)
         max_amplitude = kwargs.get("max_amplitude", 2 * np.pi)
         return (
-            f"QuantumLib Rabi Oscillation Experiment\\n"
+            f"OQTOPUS Experiments Rabi Oscillation Experiment\\n"
             f"Devices: {', '.join(devices)}\\n"
             f"Backend: {backend}\\n"
             f"Shots: {shots:,} per amplitude | Points: {points}\\n"

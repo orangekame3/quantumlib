@@ -1,5 +1,5 @@
 """
-QuantumLib Utilities Package
+OQTOPUS Experiments Utilities Package
 
 This package provides common utility functions that are shared across
 different experiment types to reduce code duplication.
