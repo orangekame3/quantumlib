@@ -162,13 +162,12 @@ def advanced_chsh_with_custom_settings():
         }
     )
 
-    exp.mitigation_options.update(
-        {
-            "ro_error_mitigation": "least_squares",
-            "zne_noise_factors": [1, 2, 3],
-            "extrapolation_method": "linear",
-        }
-    )
+    mitigation_update = {
+        "ro_error_mitigation": "least_squares",
+        "zne_noise_factors": [1, 2, 3],
+        "extrapolation_method": "linear",
+    }
+    exp.mitigation_options.update(mitigation_update)
 
     print("🔧 Advanced OQTOPUS settings:")
     print(f"  Optimization: level {exp.transpiler_options['optimization_level']}")

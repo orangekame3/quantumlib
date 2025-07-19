@@ -186,7 +186,7 @@ class RabiExperiment(BaseExperiment):
             },
         }
 
-    def _calculate_excitation_probability(self, counts: dict[str, int]) -> float:
+    def _calculate_excitation_probability(self, counts: dict[str | int, int]) -> float:
         """
         励起確率計算
         """

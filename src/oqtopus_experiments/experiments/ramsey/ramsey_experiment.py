@@ -547,7 +547,8 @@ class RamseyExperiment(BaseExperiment, ParallelExecutionMixin):
         self,
         devices: list[str] = ["qulacs"],
         shots: int = 1024,
-        parallel_workers: int = 4,
+        submit_interval: float = 1.0,
+        wait_minutes: int = 30,
         **kwargs,
     ) -> dict[str, Any]:
         """
@@ -556,7 +557,7 @@ class RamseyExperiment(BaseExperiment, ParallelExecutionMixin):
         # base_cliが直接並列メソッドを呼び出すため、ここでは基本的な結果収集のみ
         print("⚠️ run_experiment called directly - use CLI framework instead")
         return self.run_ramsey_experiment_parallel(
-            devices=devices, shots=shots, parallel_workers=parallel_workers, **kwargs
+            devices=devices, shots=shots, parallel_workers=4, **kwargs
         )
 
     def _create_single_ramsey_circuit(self, delay_time: float, detuning: float = 0.0):

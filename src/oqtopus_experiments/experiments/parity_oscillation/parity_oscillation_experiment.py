@@ -197,7 +197,7 @@ class ParityOscillationExperiment(BaseExperiment):
 
         return circuits
 
-    def calculate_parity(self, counts: dict[str, int]) -> float:
+    def calculate_parity(self, counts: dict[str | int, int]) -> float:
         """
         Calculate parity P_even - P_odd from measurement counts
 
@@ -215,9 +215,10 @@ class ParityOscillationExperiment(BaseExperiment):
         odd_count = 0
 
         # Check if we need OQTOPUS decimal-to-binary conversion
-        if any(isinstance(key, int) for key in counts.keys()):
+        integer_keys = [k for k in counts.keys() if isinstance(k, int)]
+        if integer_keys:
             # OQTOPUS decimal format - need to guess num_qubits from data
-            max_value = max(k for k in counts.keys() if isinstance(k, int))
+            max_value = max(integer_keys)
             num_qubits = max_value.bit_length() if max_value > 0 else 1
 
             # Debug info (show once)
@@ -352,14 +353,14 @@ class ParityOscillationExperiment(BaseExperiment):
         for device, device_results in results.items():
             print(f"\nAnalyzing {device} results...")
 
-            device_analysis = {
+            device_analysis: dict[str, Any] = {
                 "coherence_data": [],
                 "parity_oscillations": [],
                 "fit_parameters": [],
             }
 
             # Group results by (num_qubits, delay_us)
-            grouped_results = {}
+            grouped_results: dict[tuple[int, float], list[Any]] = {}
 
             for i, result in enumerate(device_results):
                 if result is None or not result.get("success", False):
@@ -502,7 +503,7 @@ class ParityOscillationExperiment(BaseExperiment):
             return None
 
         # Group by delay time
-        delay_groups = {}
+        delay_groups: dict[float, list[Any]] = {}
         for data in oscillation_data:
             delay = data["delay_us"]
             if delay not in delay_groups:
@@ -737,7 +738,7 @@ class ParityOscillationExperiment(BaseExperiment):
                 continue
 
             # Group by qubit count to analyze scaling
-            qubit_groups = {}
+            qubit_groups: dict[int, list[Any]] = {}
             for data in coherence_data:
                 n = data["num_qubits"]
                 if n not in qubit_groups:
