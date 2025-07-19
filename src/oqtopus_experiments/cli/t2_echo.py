@@ -163,9 +163,7 @@ class T2EchoExperimentCLI(BaseExperimentCLI):
         echo_type: Annotated[
             str, typer.Option(help="Echo pulse sequence type (hahn/cpmg)")
         ] = "hahn",
-        num_echoes: Annotated[
-            int, typer.Option(help="Number of echo pulses")
-        ] = 1,
+        num_echoes: Annotated[int, typer.Option(help="Number of echo pulses")] = 1,
         enable_fitting: Annotated[
             bool, typer.Option(help="Enable T2 echo time fitting")
         ] = True,

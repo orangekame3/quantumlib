@@ -32,7 +32,8 @@ class RabiExperimentCLI(BaseExperimentCLI):
 
     def __init__(self):
         super().__init__(
-            experiment_name="Rabi", help_text="OQTOPUS Experiments Rabi Oscillation Experiment"
+            experiment_name="Rabi",
+            help_text="OQTOPUS Experiments Rabi Oscillation Experiment",
         )
 
     def get_experiment_class(self):

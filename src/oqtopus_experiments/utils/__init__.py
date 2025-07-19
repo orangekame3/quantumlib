@@ -46,6 +46,7 @@ try:
         create_experiment_plot,
         create_multi_device_comparison_plot,
     )
+
     _PLOTTING_AVAILABLE = True
 except ImportError:
     _PLOTTING_AVAILABLE = False
@@ -58,6 +59,7 @@ try:
         perform_cross_experiment_analysis,
         perform_statistical_tests,
     )
+
     _ANALYSIS_AVAILABLE = True
 except ImportError:
     _ANALYSIS_AVAILABLE = False
@@ -69,13 +71,11 @@ __all__ = [
     "extract_counts_from_oqtopus_result",
     "calculate_shots_from_counts",
     "normalize_counts",
-
     # Display utilities
     "display_experiment_results",
     "create_experiment_summary",
     "format_time_duration",
     "format_scientific_notation",
-
     # Statistics utilities
     "calculate_probability",
     "calculate_p0_probability",
@@ -87,7 +87,6 @@ __all__ = [
     "echo_decay",
     "rabi_oscillation",
     "calculate_fidelity",
-
     # Data management utilities
     "create_experiment_data_structure",
     "save_experiment_data",
@@ -98,18 +97,22 @@ __all__ = [
 
 # Conditionally add advanced utilities to __all__ if available
 if _PLOTTING_AVAILABLE:
-    __all__.extend([
-        "create_experiment_plot",
-        "create_multi_device_comparison_plot",
-        "create_3d_surface_plot",
-        "apply_experiment_theme",
-    ])
+    __all__.extend(
+        [
+            "create_experiment_plot",
+            "create_multi_device_comparison_plot",
+            "create_3d_surface_plot",
+            "apply_experiment_theme",
+        ]
+    )
 
 if _ANALYSIS_AVAILABLE:
-    __all__.extend([
-        "calculate_uncertainty_propagation",
-        "perform_cross_experiment_analysis",
-        "calculate_quantum_metrics",
-        "perform_statistical_tests",
-        "optimize_experiment_parameters",
-    ])
+    __all__.extend(
+        [
+            "calculate_uncertainty_propagation",
+            "perform_cross_experiment_analysis",
+            "calculate_quantum_metrics",
+            "perform_statistical_tests",
+            "optimize_experiment_parameters",
+        ]
+    )

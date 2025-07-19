@@ -72,7 +72,7 @@ def estimate_parameters_with_quality(
     fit_function,
     initial_params: list[float],
     param_bounds: tuple[list[float], list[float]] | None = None,
-    max_iterations: int = 2000
+    max_iterations: int = 2000,
 ) -> dict[str, Any]:
     """
     Estimate parameters using curve fitting with quality assessment.
@@ -104,9 +104,9 @@ def estimate_parameters_with_quality(
             return {
                 "fitted_params": initial_params,
                 "param_errors": [0.0] * len(initial_params),
-                "fit_quality": {"r_squared": 0.0, "residual_std": float('inf')},
+                "fit_quality": {"r_squared": 0.0, "residual_std": float("inf")},
                 "success": False,
-                "error": "No valid data points"
+                "error": "No valid data points",
             }
 
         x_valid = x_data[valid_mask]
@@ -116,9 +116,9 @@ def estimate_parameters_with_quality(
             return {
                 "fitted_params": initial_params,
                 "param_errors": [0.0] * len(initial_params),
-                "fit_quality": {"r_squared": 0.0, "residual_std": float('inf')},
+                "fit_quality": {"r_squared": 0.0, "residual_std": float("inf")},
                 "success": False,
-                "error": f"Insufficient data points: {len(x_valid)} < {len(initial_params)}"
+                "error": f"Insufficient data points: {len(x_valid)} < {len(initial_params)}",
             }
 
         # Perform curve fitting
@@ -129,15 +129,11 @@ def estimate_parameters_with_quality(
                 y_valid,
                 p0=initial_params,
                 bounds=param_bounds,
-                maxfev=max_iterations
+                maxfev=max_iterations,
             )
         else:
             popt, pcov = curve_fit(
-                fit_function,
-                x_valid,
-                y_valid,
-                p0=initial_params,
-                maxfev=max_iterations
+                fit_function, x_valid, y_valid, p0=initial_params, maxfev=max_iterations
             )
 
         # Calculate parameter uncertainties
@@ -147,7 +143,7 @@ def estimate_parameters_with_quality(
         y_fitted = fit_function(x_valid, *popt)
         residuals = y_valid - y_fitted
         ss_res = np.sum(residuals**2)
-        ss_tot = np.sum((y_valid - np.mean(y_valid))**2)
+        ss_tot = np.sum((y_valid - np.mean(y_valid)) ** 2)
 
         r_squared = 1 - (ss_res / ss_tot) if ss_tot > 0 else 0.0
         residual_std = np.std(residuals)
@@ -158,18 +154,18 @@ def estimate_parameters_with_quality(
             "fit_quality": {
                 "r_squared": float(r_squared),
                 "residual_std": float(residual_std),
-                "residuals": residuals.tolist()
+                "residuals": residuals.tolist(),
             },
-            "success": True
+            "success": True,
         }
 
     except Exception as e:
         return {
             "fitted_params": initial_params,
             "param_errors": [0.0] * len(initial_params),
-            "fit_quality": {"r_squared": 0.0, "residual_std": float('inf')},
+            "fit_quality": {"r_squared": 0.0, "residual_std": float("inf")},
             "success": False,
-            "error": str(e)
+            "error": str(e),
         }
 
 
@@ -193,7 +189,9 @@ def rabi_oscillation(t, A, rabi_freq, phase, offset):
     return A * np.cos(2 * np.pi * rabi_freq * t + phase) + offset
 
 
-def calculate_fidelity(theoretical_probs: dict[str, float], measured_probs: dict[str, float]) -> float:
+def calculate_fidelity(
+    theoretical_probs: dict[str, float], measured_probs: dict[str, float]
+) -> float:
     """
     Calculate state fidelity between theoretical and measured probability distributions.
 
@@ -219,6 +217,8 @@ def calculate_fidelity(theoretical_probs: dict[str, float], measured_probs: dict
     return float(fidelity)
 
 
-def calculate_process_fidelity(ideal_results: dict[str, float], actual_results: dict[str, float]) -> float:
+def calculate_process_fidelity(
+    ideal_results: dict[str, float], actual_results: dict[str, float]
+) -> float:
     """Calculate process fidelity between ideal and actual experiment results."""
     return calculate_fidelity(ideal_results, actual_results)

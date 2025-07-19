@@ -196,7 +196,7 @@ class T2EchoExperiment(BaseExperiment, ParallelExecutionMixin):
             shots=shots,
             parallel_workers=parallel_workers,
             submit_function=submit_single_t2_echo_circuit,
-            progress_name="T2 Echo Submission"
+            progress_name="T2 Echo Submission",
         )
 
     def _collect_t2_echo_results_parallel_with_order(

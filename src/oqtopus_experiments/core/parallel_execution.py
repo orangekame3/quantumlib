@@ -27,7 +27,7 @@ class ParallelExecutionMixin:
         parallel_workers: int,
         submit_function: Callable,
         progress_name: str = "Submission",
-        **kwargs
+        **kwargs,
     ) -> dict[str, list[dict[str, Any]]]:
         """
         Submit circuits in parallel across devices while preserving order.
@@ -78,7 +78,9 @@ class ParallelExecutionMixin:
                 if success and result:
                     successful_jobs += 1
                     all_jobs[device][circuit_idx] = result
-                    print(f"✅ {device}[{circuit_idx}]: submitted ({completed_jobs}/{total_jobs})")
+                    print(
+                        f"✅ {device}[{circuit_idx}]: submitted ({completed_jobs}/{total_jobs})"
+                    )
 
                 # Progress reporting every 20%
                 progress_percent = (completed_jobs * 100) // total_jobs
@@ -93,8 +95,10 @@ class ParallelExecutionMixin:
 
         # Final summary
         total_successful = sum(
-            1 for device_jobs in all_jobs.values()
-            for job in device_jobs if job is not None
+            1
+            for device_jobs in all_jobs.values()
+            for job in device_jobs
+            if job is not None
         )
         success_rate = (total_successful / total_jobs * 100) if total_jobs > 0 else 0
 
@@ -110,7 +114,7 @@ class ParallelExecutionMixin:
         parallel_workers: int,
         collect_function: Callable,
         progress_name: str = "Collection",
-        **kwargs
+        **kwargs,
     ) -> dict[str, list[dict[str, Any] | None]]:
         """
         Collect results from submitted jobs in parallel while preserving order.
@@ -143,7 +147,9 @@ class ParallelExecutionMixin:
                 return device, circuit_idx, result, True
             except Exception as e:
                 job_id = job_info.get("job_id", "unknown")
-                print(f"❌ {device}[{circuit_idx}]: {job_id[:8]}... error: {str(e)[:50]}")
+                print(
+                    f"❌ {device}[{circuit_idx}]: {job_id[:8]}... error: {str(e)[:50]}"
+                )
                 return device, circuit_idx, None, False
 
         with ThreadPoolExecutor(max_workers=parallel_workers) as executor:
@@ -164,7 +170,9 @@ class ParallelExecutionMixin:
                 if success and result:
                     successful_jobs += 1
                     all_results[device][circuit_idx] = result
-                    print(f"✅ {device}[{circuit_idx}]: collected ({completed_jobs}/{total_jobs})")
+                    print(
+                        f"✅ {device}[{circuit_idx}]: collected ({completed_jobs}/{total_jobs})"
+                    )
 
                 # Progress reporting every 20%
                 progress_percent = (completed_jobs * 100) // total_jobs
@@ -201,7 +209,7 @@ class ParallelExecutionMixin:
         device: str,
         timeout_minutes: int = 30,
         poll_interval_seconds: int = 5,
-        backend_instance: Any | None = None
+        backend_instance: Any | None = None,
     ) -> dict[str, Any] | None:
         """
         Poll a job until completion with timeout and status reporting.
@@ -240,7 +248,9 @@ class ParallelExecutionMixin:
 
                 # Check timeout
                 if time.time() - start_time > timeout_seconds:
-                    print(f"⏰ {device}: {job_id[:8]}... timeout after {timeout_minutes}m")
+                    print(
+                        f"⏰ {device}: {job_id[:8]}... timeout after {timeout_minutes}m"
+                    )
                     return None
 
                 # Wait before next poll
@@ -248,7 +258,9 @@ class ParallelExecutionMixin:
 
             except Exception as e:
                 elapsed = time.time() - start_time
-                print(f"❌ {device}: {job_id[:8]}... polling error ({elapsed:.1f}s): {str(e)[:50]}")
+                print(
+                    f"❌ {device}: {job_id[:8]}... polling error ({elapsed:.1f}s): {str(e)[:50]}"
+                )
                 return None
 
     def execute_parallel_experiment(
@@ -260,7 +272,7 @@ class ParallelExecutionMixin:
         submit_function: Callable,
         collect_function: Callable,
         experiment_name: str = "Experiment",
-        **kwargs
+        **kwargs,
     ) -> dict[str, list[dict[str, Any] | None]]:
         """
         Execute a complete parallel experiment: submit circuits and collect results.
@@ -278,7 +290,9 @@ class ParallelExecutionMixin:
         Returns:
             Dictionary mapping device names to lists of results
         """
-        print(f"🚀 Starting {experiment_name} with {len(circuits)} circuits on {len(devices)} devices")
+        print(
+            f"🚀 Starting {experiment_name} with {len(circuits)} circuits on {len(devices)} devices"
+        )
 
         # Phase 1: Submit circuits
         job_data = self.submit_circuits_parallel_with_order(
@@ -288,7 +302,7 @@ class ParallelExecutionMixin:
             parallel_workers=parallel_workers,
             submit_function=submit_function,
             progress_name=f"{experiment_name} Submission",
-            **kwargs
+            **kwargs,
         )
 
         # Phase 2: Collect results
@@ -297,7 +311,7 @@ class ParallelExecutionMixin:
             parallel_workers=parallel_workers,
             collect_function=collect_function,
             progress_name=f"{experiment_name} Collection",
-            **kwargs
+            **kwargs,
         )
 
         return results

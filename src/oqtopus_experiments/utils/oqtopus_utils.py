@@ -6,10 +6,8 @@ and quantum experiment systems.
 """
 
 
-
 def convert_decimal_to_binary_counts(
-    decimal_counts: dict[str, int],
-    num_qubits: int = 1
+    decimal_counts: dict[str, int], num_qubits: int = 1
 ) -> dict[str, int]:
     """
     Convert OQTOPUS decimal counts to binary format.
@@ -51,7 +49,7 @@ def convert_decimal_to_binary_counts(
 
         # Convert decimal to binary string with proper padding
         try:
-            binary_key = format(decimal_value, f'0{num_qubits}b')
+            binary_key = format(decimal_value, f"0{num_qubits}b")
 
             # Validate the result is within expected range
             if decimal_value >= 2**num_qubits:
@@ -62,9 +60,7 @@ def convert_decimal_to_binary_counts(
                 continue
 
         except (ValueError, OverflowError) as e:
-            print(
-                f"⚠️ Error converting key {decimal_key}: {e}"
-            )
+            print(f"⚠️ Error converting key {decimal_key}: {e}")
             continue
 
         # Accumulate counts for the same binary key

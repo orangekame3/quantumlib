@@ -195,7 +195,7 @@ class RamseyExperiment(BaseExperiment, ParallelExecutionMixin):
             shots=shots,
             parallel_workers=parallel_workers,
             submit_function=submit_single_ramsey_circuit,
-            progress_name="Ramsey Submission"
+            progress_name="Ramsey Submission",
         )
 
     def _submit_ramsey_circuits_locally_parallel(
