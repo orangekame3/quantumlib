@@ -10,13 +10,13 @@ import numpy as np
 from qiskit import QuantumCircuit, transpile
 from scipy.optimize import curve_fit
 
-from ...core.base_experiment import BaseExperiment
+from ..core.base_experiment import BaseExperiment
 
 
 class RabiExperiment(BaseExperiment):
     """
     Rabi oscillation experiment class
-    
+
     Simplified implementation focusing on core functionality:
     - Rabi circuit generation via classmethod
     - Oscillation analysis with amplitude and frequency fitting
@@ -55,7 +55,7 @@ class RabiExperiment(BaseExperiment):
     ) -> tuple[list[Any], dict]:
         """
         Create Rabi oscillation experiment circuits using functional approach
-        
+
         Args:
             amplitude_points: Number of amplitude points
             max_amplitude: Maximum drive amplitude
@@ -63,7 +63,7 @@ class RabiExperiment(BaseExperiment):
             qubit: Target qubit for Rabi measurement
             basis_gates: Transpilation basis gates
             optimization_level: Transpilation optimization level
-            
+
         Returns:
             Tuple of (circuits_list, metadata_dict)
         """
@@ -105,8 +105,12 @@ class RabiExperiment(BaseExperiment):
             "qubit": qubit,
         }
 
-        print(f"Created {len(circuits)} Rabi circuits (amplitude range: {amplitudes[0]:.3f} - {amplitudes[-1]:.3f})")
-        print("Rabi circuit structure: |0⟩ → RX(amp·π) → measure (expected: oscillation with amp)")
+        print(
+            f"Created {len(circuits)} Rabi circuits (amplitude range: {amplitudes[0]:.3f} - {amplitudes[-1]:.3f})"
+        )
+        print(
+            "Rabi circuit structure: |0⟩ → RX(amp·π) → measure (expected: oscillation with amp)"
+        )
 
         return circuits, metadata
 
@@ -115,10 +119,10 @@ class RabiExperiment(BaseExperiment):
     ) -> dict[str, Any]:
         """
         Analyze Rabi experiment results with oscillation fitting
-        
+
         Args:
             results: Raw measurement results per device
-            
+
         Returns:
             Rabi analysis results with fitted oscillation parameters
         """
@@ -149,7 +153,7 @@ class RabiExperiment(BaseExperiment):
 
                     if total_shots > 0:
                         # Calculate P(|1⟩) = proportion of '1' measurements
-                        prob_1 = counts.get('1', counts.get(1, 0)) / total_shots
+                        prob_1 = counts.get("1", counts.get(1, 0)) / total_shots
                         expectation_values.append(prob_1)
                     else:
                         expectation_values.append(0.0)
@@ -161,25 +165,37 @@ class RabiExperiment(BaseExperiment):
             # Fit Rabi oscillation: P(amp) = A * sin²(π * amp * freq + φ) + B
             try:
                 # Initial parameter estimates
-                initial_amplitude = (np.max(expectation_values) - np.min(expectation_values)) / 2
-                initial_frequency = self._estimate_rabi_frequency(amplitudes, expectation_values)
+                initial_amplitude = (
+                    np.max(expectation_values) - np.min(expectation_values)
+                ) / 2
+                initial_frequency = self._estimate_rabi_frequency(
+                    amplitudes, expectation_values
+                )
                 initial_phase = 0.0
                 initial_offset = np.mean(expectation_values)
 
                 def rabi_oscillation(amp, amplitude, frequency, phase, offset):
-                    return amplitude * np.sin(np.pi * amp * frequency + phase)**2 + offset
+                    return (
+                        amplitude * np.sin(np.pi * amp * frequency + phase) ** 2
+                        + offset
+                    )
 
                 # Perform curve fitting
                 popt, pcov = curve_fit(
                     rabi_oscillation,
                     amplitudes,
                     expectation_values,
-                    p0=[initial_amplitude, initial_frequency, initial_phase, initial_offset],
+                    p0=[
+                        initial_amplitude,
+                        initial_frequency,
+                        initial_phase,
+                        initial_offset,
+                    ],
                     bounds=(
-                        [0, 0.1, -2*np.pi, 0],      # Lower bounds
-                        [1, 10, 2*np.pi, 1]         # Upper bounds
+                        [0, 0.1, -2 * np.pi, 0],  # Lower bounds
+                        [1, 10, 2 * np.pi, 1],  # Upper bounds
                     ),
-                    maxfev=10000
+                    maxfev=10000,
                 )
 
                 fitted_amplitude, fitted_frequency, fitted_phase, fitted_offset = popt
@@ -187,7 +203,7 @@ class RabiExperiment(BaseExperiment):
                 # Calculate π pulse amplitude (when sin²(π * amp * freq + φ) = 1)
                 # This occurs when π * amp * freq + φ = π/2 + n*π
                 # For first π pulse: amp_pi = (π/2 - φ) / (π * freq) = (1/2 - φ/π) / freq
-                pi_amplitude = (0.5 - fitted_phase/np.pi) / fitted_frequency
+                pi_amplitude = (0.5 - fitted_phase / np.pi) / fitted_frequency
                 if pi_amplitude < 0:
                     pi_amplitude += 1.0 / fitted_frequency  # Add one period
 
@@ -215,7 +231,9 @@ class RabiExperiment(BaseExperiment):
                     "rmse": float(np.sqrt(ss_res / len(expectation_values))),
                 }
 
-                print(f"📊 {device}: π-pulse amp = {pi_amplitude:.3f}, freq = {fitted_frequency:.3f}, R² = {r_squared:.3f}")
+                print(
+                    f"📊 {device}: π-pulse amp = {pi_amplitude:.3f}, freq = {fitted_frequency:.3f}, R² = {r_squared:.3f}"
+                )
 
             except Exception as e:
                 print(f"❌ {device}: Rabi fitting failed - {str(e)}")
@@ -226,14 +244,16 @@ class RabiExperiment(BaseExperiment):
 
         return analysis
 
-    def _estimate_rabi_frequency(self, amplitudes: np.ndarray, expectation_values: np.ndarray) -> float:
+    def _estimate_rabi_frequency(
+        self, amplitudes: np.ndarray, expectation_values: np.ndarray
+    ) -> float:
         """
         Estimate Rabi frequency using simple peak counting for initial fitting guess
-        
+
         Args:
             amplitudes: Drive amplitude values
             expectation_values: Measured probability values
-            
+
         Returns:
             Estimated Rabi frequency
         """
@@ -242,9 +262,11 @@ class RabiExperiment(BaseExperiment):
             # A simple approach: count local maxima
             peaks = 0
             for i in range(1, len(expectation_values) - 1):
-                if (expectation_values[i] > expectation_values[i-1] and
-                    expectation_values[i] > expectation_values[i+1] and
-                    expectation_values[i] > np.mean(expectation_values)):
+                if (
+                    expectation_values[i] > expectation_values[i - 1]
+                    and expectation_values[i] > expectation_values[i + 1]
+                    and expectation_values[i] > np.mean(expectation_values)
+                ):
                     peaks += 1
 
             if peaks > 0:

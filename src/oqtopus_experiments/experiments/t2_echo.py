@@ -10,13 +10,13 @@ import numpy as np
 from qiskit import QuantumCircuit, transpile
 from scipy.optimize import curve_fit
 
-from ...core.base_experiment import BaseExperiment
+from ..core.base_experiment import BaseExperiment
 
 
 class T2EchoExperiment(BaseExperiment):
     """
     T2 Echo experiment class (Hahn Echo and CPMG sequences)
-    
+
     Simplified implementation focusing on core functionality:
     - T2 echo circuit generation via classmethod
     - Exponential decay analysis with echo refocusing
@@ -37,7 +37,9 @@ class T2EchoExperiment(BaseExperiment):
         }
 
         # Filter kwargs to pass to BaseExperiment
-        base_kwargs = {k: v for k, v in kwargs.items() if k not in t2_echo_specific_params}
+        base_kwargs = {
+            k: v for k, v in kwargs.items() if k not in t2_echo_specific_params
+        }
 
         super().__init__(experiment_name or "t2_echo_experiment", **base_kwargs)
 
@@ -58,7 +60,7 @@ class T2EchoExperiment(BaseExperiment):
     ) -> tuple[list[Any], dict]:
         """
         Create T2 echo experiment circuits using functional approach
-        
+
         Args:
             delay_points: Number of delay time points
             max_delay: Maximum total delay time in nanoseconds
@@ -67,29 +69,27 @@ class T2EchoExperiment(BaseExperiment):
             qubit: Target qubit for T2 echo measurement
             basis_gates: Transpilation basis gates
             optimization_level: Transpilation optimization level
-            
+
         Returns:
             Tuple of (circuits_list, metadata_dict)
         """
         # Generate delay times (logarithmic spacing for better T2 characterization)
         delay_times = np.logspace(
-            np.log10(1.0),  # Start from 1 ns
-            np.log10(max_delay),
-            delay_points
+            np.log10(1.0), np.log10(max_delay), delay_points  # Start from 1 ns
         )
 
         circuits = []
 
         for total_delay in delay_times:
             qc = QuantumCircuit(1, 1)
-            qc.rx(np.pi/2, 0)  # Initial π/2 pulse to create superposition
+            qc.rx(np.pi / 2, 0)  # Initial π/2 pulse to create superposition
 
             if echo_type.lower() == "hahn":
                 # Hahn Echo: π/2 - τ/2 - π - τ/2 - π/2
                 half_delay = total_delay / 2
-                qc.delay(half_delay, 0, unit='ns')
+                qc.delay(half_delay, 0, unit="ns")
                 qc.rx(np.pi, 0)  # π pulse (echo pulse)
-                qc.delay(half_delay, 0, unit='ns')
+                qc.delay(half_delay, 0, unit="ns")
 
             elif echo_type.lower() == "cpmg":
                 # CPMG: π/2 - [τ/(2n) - π - τ/n - π - ... - τ/(2n)] - π/2
@@ -97,22 +97,22 @@ class T2EchoExperiment(BaseExperiment):
                 inter_pulse_delay = total_delay / (2 * num_echoes)
 
                 # First half delay
-                qc.delay(inter_pulse_delay, 0, unit='ns')
+                qc.delay(inter_pulse_delay, 0, unit="ns")
 
                 # Echo pulse sequence
                 for i in range(num_echoes):
                     qc.rx(np.pi, 0)  # π pulse
                     if i < num_echoes - 1:
                         # Full delay between echoes
-                        qc.delay(2 * inter_pulse_delay, 0, unit='ns')
+                        qc.delay(2 * inter_pulse_delay, 0, unit="ns")
                     else:
                         # Last half delay
-                        qc.delay(inter_pulse_delay, 0, unit='ns')
+                        qc.delay(inter_pulse_delay, 0, unit="ns")
 
             else:
                 raise ValueError(f"Unsupported echo type: {echo_type}")
 
-            qc.rx(np.pi/2, 0)  # Final π/2 pulse for readout
+            qc.rx(np.pi / 2, 0)  # Final π/2 pulse for readout
             qc.measure(0, 0)  # Measure final state
 
             # Transpile if basis gates specified
@@ -134,7 +134,9 @@ class T2EchoExperiment(BaseExperiment):
             "qubit": qubit,
         }
 
-        print(f"Created {len(circuits)} T2 Echo circuits ({echo_type.upper()}, n={num_echoes})")
+        print(
+            f"Created {len(circuits)} T2 Echo circuits ({echo_type.upper()}, n={num_echoes})"
+        )
         print(f"Delay range: {delay_times[0]:.1f} - {delay_times[-1]:.1f} ns")
         print("T2 Echo structure: |0⟩ → RX(π/2) → echo_sequence → RX(π/2) → measure")
 
@@ -145,10 +147,10 @@ class T2EchoExperiment(BaseExperiment):
     ) -> dict[str, Any]:
         """
         Analyze T2 echo experiment results with exponential decay fitting
-        
+
         Args:
             results: Raw measurement results per device
-            
+
         Returns:
             T2 echo analysis results with fitted decay constants
         """
@@ -183,7 +185,7 @@ class T2EchoExperiment(BaseExperiment):
 
                     if total_shots > 0:
                         # Calculate P(|0⟩) = proportion of '0' measurements
-                        prob_0 = counts.get('0', counts.get(0, 0)) / total_shots
+                        prob_0 = counts.get("0", counts.get(0, 0)) / total_shots
                         expectation_values.append(prob_0)
                     else:
                         expectation_values.append(0.5)
@@ -195,7 +197,9 @@ class T2EchoExperiment(BaseExperiment):
             # Fit exponential decay: P(t) = A * exp(-t/T2_echo) + B
             try:
                 # Initial parameter estimates
-                initial_amplitude = np.max(expectation_values) - np.min(expectation_values)
+                initial_amplitude = np.max(expectation_values) - np.min(
+                    expectation_values
+                )
                 initial_t2_echo = self.expected_t2_echo
                 initial_offset = np.min(expectation_values)
 
@@ -209,7 +213,7 @@ class T2EchoExperiment(BaseExperiment):
                     expectation_values,
                     p0=[initial_amplitude, initial_t2_echo, initial_offset],
                     bounds=([0, 1, -0.1], [2, 1e6, 1.1]),  # Reasonable bounds
-                    maxfev=5000
+                    maxfev=5000,
                 )
 
                 fitted_amplitude, fitted_t2_echo, fitted_offset = popt
@@ -243,7 +247,9 @@ class T2EchoExperiment(BaseExperiment):
                 if echo_type.lower() == "cpmg":
                     echo_label += f"(n={num_echoes})"
 
-                print(f"📊 {device}: {echo_label} = {fitted_t2_echo:.1f} ± {param_errors[1]:.1f} ns ({fitted_t2_echo/1000:.2f} μs), R² = {r_squared:.3f}")
+                print(
+                    f"📊 {device}: {echo_label} = {fitted_t2_echo:.1f} ± {param_errors[1]:.1f} ns ({fitted_t2_echo/1000:.2f} μs), R² = {r_squared:.3f}"
+                )
 
             except Exception as e:
                 print(f"❌ {device}: T2 Echo fitting failed - {str(e)}")

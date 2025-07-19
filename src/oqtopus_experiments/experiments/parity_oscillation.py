@@ -10,7 +10,7 @@ from typing import Any
 
 import numpy as np
 
-from ...core.base_experiment import BaseExperiment
+from ..core.base_experiment import BaseExperiment
 
 try:
     from qiskit import QuantumCircuit

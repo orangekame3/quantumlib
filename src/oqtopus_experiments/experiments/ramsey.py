@@ -10,13 +10,13 @@ import numpy as np
 from qiskit import QuantumCircuit, transpile
 from scipy.optimize import curve_fit
 
-from ...core.base_experiment import BaseExperiment
+from ..core.base_experiment import BaseExperiment
 
 
 class RamseyExperiment(BaseExperiment):
     """
     Ramsey oscillation experiment class
-    
+
     Simplified implementation focusing on core functionality:
     - Ramsey circuit generation via classmethod
     - Oscillation analysis with frequency and T2* fitting
@@ -36,7 +36,9 @@ class RamseyExperiment(BaseExperiment):
         }
 
         # Filter kwargs to pass to BaseExperiment
-        base_kwargs = {k: v for k, v in kwargs.items() if k not in ramsey_specific_params}
+        base_kwargs = {
+            k: v for k, v in kwargs.items() if k not in ramsey_specific_params
+        }
 
         super().__init__(experiment_name or "ramsey_experiment", **base_kwargs)
 
@@ -56,7 +58,7 @@ class RamseyExperiment(BaseExperiment):
     ) -> tuple[list[Any], dict]:
         """
         Create Ramsey oscillation experiment circuits using functional approach
-        
+
         Args:
             delay_points: Number of delay time points
             max_delay: Maximum delay time in nanoseconds
@@ -64,7 +66,7 @@ class RamseyExperiment(BaseExperiment):
             qubit: Target qubit for Ramsey measurement
             basis_gates: Transpilation basis gates
             optimization_level: Transpilation optimization level
-            
+
         Returns:
             Tuple of (circuits_list, metadata_dict)
         """
@@ -76,10 +78,10 @@ class RamseyExperiment(BaseExperiment):
         for delay in delay_times:
             # Create Ramsey sequence: X/2 - delay - X/2 - measure
             qc = QuantumCircuit(1, 1)
-            qc.rx(np.pi/2, 0)  # First π/2 pulse (create superposition)
+            qc.rx(np.pi / 2, 0)  # First π/2 pulse (create superposition)
 
             if delay > 0:
-                qc.delay(delay, 0, unit='ns')  # Free evolution with detuning
+                qc.delay(delay, 0, unit="ns")  # Free evolution with detuning
 
             # Apply detuning phase if specified
             if detuning != 0:
@@ -87,7 +89,7 @@ class RamseyExperiment(BaseExperiment):
                 detuning_phase = 2 * np.pi * detuning * 1e6 * delay * 1e-9  # MHz * ns
                 qc.rz(detuning_phase, 0)
 
-            qc.rx(np.pi/2, 0)  # Second π/2 pulse (analysis pulse)
+            qc.rx(np.pi / 2, 0)  # Second π/2 pulse (analysis pulse)
             qc.measure(0, 0)  # Measure final state
 
             # Transpile if basis gates specified
@@ -108,8 +110,12 @@ class RamseyExperiment(BaseExperiment):
             "qubit": qubit,
         }
 
-        print(f"Created {len(circuits)} Ramsey circuits (delay range: {delay_times[0]:.1f} - {delay_times[-1]:.1f} ns)")
-        print(f"Ramsey circuit structure: |0⟩ → RX(π/2) → delay(t) → RX(π/2) → measure (detuning: {detuning} MHz)")
+        print(
+            f"Created {len(circuits)} Ramsey circuits (delay range: {delay_times[0]:.1f} - {delay_times[-1]:.1f} ns)"
+        )
+        print(
+            f"Ramsey circuit structure: |0⟩ → RX(π/2) → delay(t) → RX(π/2) → measure (detuning: {detuning} MHz)"
+        )
 
         return circuits, metadata
 
@@ -118,10 +124,10 @@ class RamseyExperiment(BaseExperiment):
     ) -> dict[str, Any]:
         """
         Analyze Ramsey experiment results with oscillation fitting
-        
+
         Args:
             results: Raw measurement results per device
-            
+
         Returns:
             Ramsey analysis results with fitted frequencies and T2*
         """
@@ -154,7 +160,7 @@ class RamseyExperiment(BaseExperiment):
 
                     if total_shots > 0:
                         # Calculate P(|0⟩) = proportion of '0' measurements
-                        prob_0 = counts.get('0', counts.get(0, 0)) / total_shots
+                        prob_0 = counts.get("0", counts.get(0, 0)) / total_shots
                         expectation_values.append(prob_0)
                     else:
                         expectation_values.append(0.5)
@@ -166,8 +172,12 @@ class RamseyExperiment(BaseExperiment):
             # Fit Ramsey oscillation: P(t) = A * exp(-t/T2*) * cos(2πft + φ) + B
             try:
                 # Initial parameter estimates
-                initial_amplitude = (np.max(expectation_values) - np.min(expectation_values)) / 2
-                initial_frequency = self._estimate_frequency(delay_times, expectation_values)
+                initial_amplitude = (
+                    np.max(expectation_values) - np.min(expectation_values)
+                ) / 2
+                initial_frequency = self._estimate_frequency(
+                    delay_times, expectation_values
+                )
                 initial_t2_star = self.expected_t2_star
                 initial_phase = 0.0
                 initial_offset = np.mean(expectation_values)
@@ -176,22 +186,37 @@ class RamseyExperiment(BaseExperiment):
                     # Convert frequency from MHz to Hz, time from ns to s
                     omega = 2 * np.pi * frequency * 1e6  # rad/s
                     t_sec = t * 1e-9  # ns to s
-                    return amplitude * np.exp(-t / t2_star) * np.cos(omega * t_sec + phase) + offset
+                    return (
+                        amplitude * np.exp(-t / t2_star) * np.cos(omega * t_sec + phase)
+                        + offset
+                    )
 
                 # Perform curve fitting
                 popt, pcov = curve_fit(
                     ramsey_oscillation,
                     delay_times,
                     expectation_values,
-                    p0=[initial_amplitude, initial_frequency, initial_t2_star, initial_phase, initial_offset],
+                    p0=[
+                        initial_amplitude,
+                        initial_frequency,
+                        initial_t2_star,
+                        initial_phase,
+                        initial_offset,
+                    ],
                     bounds=(
-                        [0, -50, 10, -2*np.pi, 0],  # Lower bounds
-                        [1, 50, 1e6, 2*np.pi, 1]   # Upper bounds
+                        [0, -50, 10, -2 * np.pi, 0],  # Lower bounds
+                        [1, 50, 1e6, 2 * np.pi, 1],  # Upper bounds
                     ),
-                    maxfev=10000
+                    maxfev=10000,
                 )
 
-                fitted_amplitude, fitted_frequency, fitted_t2_star, fitted_phase, fitted_offset = popt
+                (
+                    fitted_amplitude,
+                    fitted_frequency,
+                    fitted_t2_star,
+                    fitted_phase,
+                    fitted_offset,
+                ) = popt
 
                 # Calculate R-squared for fit quality
                 fitted_values = ramsey_oscillation(delay_times, *popt)
@@ -220,7 +245,9 @@ class RamseyExperiment(BaseExperiment):
                     "rmse": float(np.sqrt(ss_res / len(expectation_values))),
                 }
 
-                print(f"📊 {device}: f = {fitted_frequency:.3f} ± {param_errors[1]:.3f} MHz, T₂* = {fitted_t2_star:.1f} ± {param_errors[2]:.1f} ns ({fitted_t2_star/1000:.2f} μs), R² = {r_squared:.3f}")
+                print(
+                    f"📊 {device}: f = {fitted_frequency:.3f} ± {param_errors[1]:.3f} MHz, T₂* = {fitted_t2_star:.1f} ± {param_errors[2]:.1f} ns ({fitted_t2_star/1000:.2f} μs), R² = {r_squared:.3f}"
+                )
 
             except Exception as e:
                 print(f"❌ {device}: Ramsey fitting failed - {str(e)}")
@@ -231,14 +258,16 @@ class RamseyExperiment(BaseExperiment):
 
         return analysis
 
-    def _estimate_frequency(self, delay_times: np.ndarray, expectation_values: np.ndarray) -> float:
+    def _estimate_frequency(
+        self, delay_times: np.ndarray, expectation_values: np.ndarray
+    ) -> float:
         """
         Estimate oscillation frequency using FFT for initial fitting guess
-        
+
         Args:
             delay_times: Time points in nanoseconds
             expectation_values: Measured probability values
-            
+
         Returns:
             Estimated frequency in MHz
         """
@@ -254,8 +283,8 @@ class RamseyExperiment(BaseExperiment):
             freqs = np.fft.fftfreq(len(signal), dt)
 
             # Find peak frequency (positive frequencies only)
-            positive_freqs = freqs[:len(freqs)//2]
-            positive_fft = np.abs(fft[:len(fft)//2])
+            positive_freqs = freqs[: len(freqs) // 2]
+            positive_fft = np.abs(fft[: len(fft) // 2])
 
             if len(positive_fft) > 1:
                 peak_idx = np.argmax(positive_fft[1:]) + 1  # Skip DC component

@@ -8,17 +8,17 @@ from typing import Any
 
 import numpy as np
 
-from ...circuit.chsh_circuits import create_chsh_circuit
-from ...core.base_experiment import BaseExperiment
+from ..circuit.chsh_circuits import create_chsh_circuit
+from ..core.base_experiment import BaseExperiment
 
 
 class CHSHExperiment(BaseExperiment):
     """
     CHSH Bell inequality violation experiment class
-    
+
     Simplified implementation focusing on core functionality:
     - CHSH circuit generation via classmethod
-    - 4-measurement result processing  
+    - 4-measurement result processing
     - Bell inequality analysis
     """
 
@@ -71,16 +71,16 @@ class CHSHExperiment(BaseExperiment):
     ) -> tuple[list[Any], dict]:
         """
         Create CHSH experiment circuits using functional approach
-        
+
         Args:
             phase_points: Number of phase points for scan
             theta_a: Alice measurement angle
-            theta_b: Bob measurement angle  
+            theta_b: Bob measurement angle
             angles: Custom angle list (optional)
             qubit_list: Target qubits
             basis_gates: Transpilation basis gates
             optimization_level: Transpilation optimization level
-            
+
         Returns:
             Tuple of (circuits_list, metadata_dict)
         """
@@ -88,8 +88,12 @@ class CHSHExperiment(BaseExperiment):
             qubit_list = [0, 1]
 
         if angles is None:
-            angles = [(theta_a, theta_b), (theta_a, theta_b + np.pi/2),
-                     (theta_a + np.pi/2, theta_b), (theta_a + np.pi/2, theta_b + np.pi/2)]
+            angles = [
+                (theta_a, theta_b),
+                (theta_a, theta_b + np.pi / 2),
+                (theta_a + np.pi / 2, theta_b),
+                (theta_a + np.pi / 2, theta_b + np.pi / 2),
+            ]
 
         phase_range = np.linspace(0, 2 * np.pi, phase_points)
 
@@ -112,13 +116,15 @@ class CHSHExperiment(BaseExperiment):
                 )
                 circuits.append(circuit)
 
-                circuit_metadata.append({
-                    "measurement": measurement_label,
-                    "phase": phase,
-                    "theta_a": angle_a,
-                    "theta_b": angle_b,
-                    "circuit_index": len(circuits) - 1,
-                })
+                circuit_metadata.append(
+                    {
+                        "measurement": measurement_label,
+                        "phase": phase,
+                        "theta_a": angle_a,
+                        "theta_b": angle_b,
+                        "circuit_index": len(circuits) - 1,
+                    }
+                )
 
         metadata = {
             "circuit_metadata": circuit_metadata,
@@ -127,8 +133,12 @@ class CHSHExperiment(BaseExperiment):
             "measurements": measurements,
         }
 
-        print(f"Created {len(circuits)} CHSH circuits ({len(angles)} measurements × {phase_points} phases)")
-        print("CHSH circuit structure: |Φ⁺⟩ → A(θₐ), B(θᵦ) → measure (expected: Bell inequality violation with S-value)")
+        print(
+            f"Created {len(circuits)} CHSH circuits ({len(angles)} measurements × {phase_points} phases)"
+        )
+        print(
+            "CHSH circuit structure: |Φ⁺⟩ → A(θₐ), B(θᵦ) → measure (expected: Bell inequality violation with S-value)"
+        )
 
         return circuits, metadata
 
@@ -142,14 +152,14 @@ class CHSHExperiment(BaseExperiment):
     ) -> dict[str, dict]:
         """
         Process 4-measurement CHSH results by device
-        
+
         Args:
             results: Raw measurement results per device
             circuit_metadata: Circuit metadata from create_chsh_circuits
             phase_range: Phase values array
             measurements: Measurement angle tuples
             device_list: List of devices
-            
+
         Returns:
             Processed results per device
         """
@@ -185,19 +195,27 @@ class CHSHExperiment(BaseExperiment):
                     if isinstance(list(counts.keys())[0], int):
                         counts = self._convert_decimal_to_binary_counts_chsh(counts)
 
-                    expectation_value = self._calculate_expectation_value_oqtopus_compatible(counts)
+                    expectation_value = (
+                        self._calculate_expectation_value_oqtopus_compatible(counts)
+                    )
 
                     measurement_data[measurement_label]["phases"].append(phase)
-                    measurement_data[measurement_label]["expectation_values"].append(expectation_value)
+                    measurement_data[measurement_label]["expectation_values"].append(
+                        expectation_value
+                    )
 
             # Sort by phase for each measurement
             for measurement_label in measurement_data:
                 phases = np.array(measurement_data[measurement_label]["phases"])
-                expectation_values = np.array(measurement_data[measurement_label]["expectation_values"])
+                expectation_values = np.array(
+                    measurement_data[measurement_label]["expectation_values"]
+                )
 
                 sorted_indices = np.argsort(phases)
                 measurement_data[measurement_label]["phases"] = phases[sorted_indices]
-                measurement_data[measurement_label]["expectation_values"] = expectation_values[sorted_indices]
+                measurement_data[measurement_label]["expectation_values"] = (
+                    expectation_values[sorted_indices]
+                )
 
             processed_results[device] = measurement_data
 
@@ -206,10 +224,10 @@ class CHSHExperiment(BaseExperiment):
     def _calculate_expectation_value_oqtopus_compatible(self, counts: dict) -> float:
         """
         Calculate expectation value ⟨ZZ⟩ for CHSH compatible with OQTOPUS format
-        
+
         Args:
             counts: Measurement counts {"00": n1, "01": n2, "10": n3, "11": n4}
-            
+
         Returns:
             Expectation value ⟨ZZ⟩
         """
@@ -231,10 +249,10 @@ class CHSHExperiment(BaseExperiment):
     ) -> dict[str, int]:
         """
         Convert decimal counts to binary string format for CHSH (2-qubit)
-        
+
         Args:
             decimal_counts: {0: n1, 1: n2, 2: n3, 3: n4}
-            
+
         Returns:
             Binary counts: {"00": n1, "01": n2, "10": n3, "11": n4}
         """
@@ -255,12 +273,12 @@ class CHSHExperiment(BaseExperiment):
     ) -> dict[str, Any]:
         """
         Create CHSH Bell inequality analysis from 4-measurement results
-        
+
         Args:
             phase_range: Phase values array
             processed_results: Processed measurement results per device
             angles: Measurement angle tuples
-            
+
         Returns:
             CHSH analysis with S-parameter calculation
         """
@@ -275,23 +293,43 @@ class CHSHExperiment(BaseExperiment):
             measurements = list(device_data.keys())
 
             if len(measurements) != 4:
-                print(f"⚠️ Expected 4 measurements for CHSH, got {len(measurements)} for {device}")
+                print(
+                    f"⚠️ Expected 4 measurements for CHSH, got {len(measurements)} for {device}"
+                )
                 continue
 
             # Extract expectation values for each measurement
             e_vals = {}
             for measurement in measurements:
-                e_vals[measurement] = np.array(device_data[measurement]["expectation_values"])
+                e_vals[measurement] = np.array(
+                    device_data[measurement]["expectation_values"]
+                )
 
             # Calculate CHSH S-parameter: S = |E₁ + E₂| + |E₃ - E₄|
             # where E₁, E₂, E₃, E₄ are the 4 measurement expectation values
             s_values = []
 
             for i in range(len(phase_range)):
-                e1 = e_vals["measurement_1"][i] if i < len(e_vals["measurement_1"]) else 0
-                e2 = e_vals["measurement_2"][i] if i < len(e_vals["measurement_2"]) else 0
-                e3 = e_vals["measurement_3"][i] if i < len(e_vals["measurement_3"]) else 0
-                e4 = e_vals["measurement_4"][i] if i < len(e_vals["measurement_4"]) else 0
+                e1 = (
+                    e_vals["measurement_1"][i]
+                    if i < len(e_vals["measurement_1"])
+                    else 0
+                )
+                e2 = (
+                    e_vals["measurement_2"][i]
+                    if i < len(e_vals["measurement_2"])
+                    else 0
+                )
+                e3 = (
+                    e_vals["measurement_3"][i]
+                    if i < len(e_vals["measurement_3"])
+                    else 0
+                )
+                e4 = (
+                    e_vals["measurement_4"][i]
+                    if i < len(e_vals["measurement_4"])
+                    else 0
+                )
 
                 s_value = abs(e1 + e2) + abs(e3 - e4)
                 s_values.append(s_value)
@@ -310,6 +348,8 @@ class CHSHExperiment(BaseExperiment):
                 "violation_strength": float(max_s - 2.0) if max_s > 2.0 else 0.0,
             }
 
-            print(f"📊 {device}: Max S = {max_s:.3f} (violation: {'✓' if max_s > 2.0 else '✗'})")
+            print(
+                f"📊 {device}: Max S = {max_s:.3f} (violation: {'✓' if max_s > 2.0 else '✗'})"
+            )
 
         return analysis

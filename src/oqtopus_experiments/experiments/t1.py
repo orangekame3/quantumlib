@@ -10,13 +10,13 @@ import numpy as np
 from qiskit import QuantumCircuit, transpile
 from scipy.optimize import curve_fit
 
-from ...core.base_experiment import BaseExperiment
+from ..core.base_experiment import BaseExperiment
 
 
 class T1Experiment(BaseExperiment):
     """
     T1 decay experiment class
-    
+
     Simplified implementation focusing on core functionality:
     - T1 circuit generation via classmethod
     - Exponential decay analysis
@@ -54,22 +54,20 @@ class T1Experiment(BaseExperiment):
     ) -> tuple[list[Any], dict]:
         """
         Create T1 decay experiment circuits using functional approach
-        
+
         Args:
             delay_points: Number of delay time points
             max_delay: Maximum delay time in nanoseconds
             qubit: Target qubit for T1 measurement
             basis_gates: Transpilation basis gates
             optimization_level: Transpilation optimization level
-            
+
         Returns:
             Tuple of (circuits_list, metadata_dict)
         """
         # Generate delay times (logarithmic spacing for better T1 characterization)
         delay_times = np.logspace(
-            np.log10(1.0),  # Start from 1 ns
-            np.log10(max_delay),
-            delay_points
+            np.log10(1.0), np.log10(max_delay), delay_points  # Start from 1 ns
         )
 
         circuits = []
@@ -78,7 +76,7 @@ class T1Experiment(BaseExperiment):
             # Create X-gate preparation + delay + measurement circuit
             qc = QuantumCircuit(1, 1)
             qc.x(0)  # Prepare |1⟩ state
-            qc.delay(delay, 0, unit='ns')  # Wait for decay
+            qc.delay(delay, 0, unit="ns")  # Wait for decay
             qc.measure(0, 0)  # Measure final state
 
             # Transpile if basis gates specified
@@ -98,8 +96,12 @@ class T1Experiment(BaseExperiment):
             "qubit": qubit,
         }
 
-        print(f"Created {len(circuits)} T1 circuits (delay range: {delay_times[0]:.1f} - {delay_times[-1]:.1f} ns)")
-        print("T1 circuit structure: |0⟩ → X → delay(t) → measure (expected: exponential decay)")
+        print(
+            f"Created {len(circuits)} T1 circuits (delay range: {delay_times[0]:.1f} - {delay_times[-1]:.1f} ns)"
+        )
+        print(
+            "T1 circuit structure: |0⟩ → X → delay(t) → measure (expected: exponential decay)"
+        )
 
         return circuits, metadata
 
@@ -108,10 +110,10 @@ class T1Experiment(BaseExperiment):
     ) -> dict[str, Any]:
         """
         Analyze T1 experiment results with exponential decay fitting
-        
+
         Args:
             results: Raw measurement results per device
-            
+
         Returns:
             T1 analysis results with fitted decay constants
         """
@@ -142,7 +144,7 @@ class T1Experiment(BaseExperiment):
 
                     if total_shots > 0:
                         # Calculate P(|1⟩) = proportion of '1' measurements
-                        prob_1 = counts.get('1', counts.get(1, 0)) / total_shots
+                        prob_1 = counts.get("1", counts.get(1, 0)) / total_shots
                         expectation_values.append(prob_1)
                     else:
                         expectation_values.append(0.0)
@@ -154,7 +156,9 @@ class T1Experiment(BaseExperiment):
             # Fit exponential decay: P(t) = A * exp(-t/T1) + B
             try:
                 # Initial parameter estimates
-                initial_amplitude = np.max(expectation_values) - np.min(expectation_values)
+                initial_amplitude = np.max(expectation_values) - np.min(
+                    expectation_values
+                )
                 initial_t1 = self.expected_t1
                 initial_offset = np.min(expectation_values)
 
@@ -168,7 +172,7 @@ class T1Experiment(BaseExperiment):
                     expectation_values,
                     p0=[initial_amplitude, initial_t1, initial_offset],
                     bounds=([0, 1, -0.1], [2, 1e6, 1.1]),  # Reasonable bounds
-                    maxfev=5000
+                    maxfev=5000,
                 )
 
                 fitted_amplitude, fitted_t1, fitted_offset = popt
@@ -196,7 +200,9 @@ class T1Experiment(BaseExperiment):
                     "rmse": float(np.sqrt(ss_res / len(expectation_values))),
                 }
 
-                print(f"📊 {device}: T₁ = {fitted_t1:.1f} ± {param_errors[1]:.1f} ns ({fitted_t1/1000:.2f} μs), R² = {r_squared:.3f}")
+                print(
+                    f"📊 {device}: T₁ = {fitted_t1:.1f} ± {param_errors[1]:.1f} ns ({fitted_t1/1000:.2f} μs), R² = {r_squared:.3f}"
+                )
 
             except Exception as e:
                 print(f"❌ {device}: T1 fitting failed - {str(e)}")
